@@ -23,7 +23,8 @@ class ErrorEnum:
     InboundTagNotFound = 2
     UplinkNotFound = 3
     DownlinkNotFound = 4
-    XrayError = 5
+    InboundTypeNotFound = 5
+    XrayError = 6
 
 
 CIPHER_TYPE_DICT = {

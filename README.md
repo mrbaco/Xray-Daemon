@@ -1,5 +1,6 @@
 # Xray REST API daemon
 
+Daemon controls users of Xray server by REST API. 
 Xray GRPC class was forked from https://github.com/laoshan-tech/xray-node
 
 ## Installation
