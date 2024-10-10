@@ -29,9 +29,9 @@ class Xray(object):
 
     async def get_user_upload_traffic(self, email: str, reset: bool = False) -> Union[int, XrayError]:
         """
-        Получить размер исходящего трафика указанного пользователя
-        :param email: идентификатор пользователя
-        :param reset: сбросить исходящий трафик
+        Get user upload traffic
+        :param email: user e-mail
+        :param reset: reset upload traffic
         :return:
         """
         stub = stats_command_pb2_grpc.StatsServiceStub(self.xray_client)
@@ -49,9 +49,9 @@ class Xray(object):
 
     async def get_user_download_traffic(self, email: str, reset: bool = False) -> Union[int, XrayError]:
         """
-        Получить размер входящего трафика
-        :param email: идентификатор пользователя
-        :param reset: сбросить входящий трафик
+        Get user download traffic
+        :param email: user e-mail
+        :param reset: reset download traffic
         :return:
         """
         stub = stats_command_pb2_grpc.StatsServiceStub(self.xray_client)
@@ -69,8 +69,8 @@ class Xray(object):
 
     async def get_inbound_upload_traffic(self, inbound_tag: str, reset: bool = False) -> Union[int, XrayError]:
         """
-        Получить размер исходящего трафика по inbound
-        :param inbound_tag: тег inbound
+        Get inbound upload traffic
+        :param inbound_tag: inbound tag
         :return:
         """
         stub = stats_command_pb2_grpc.StatsServiceStub(self.xray_client)
@@ -84,8 +84,8 @@ class Xray(object):
 
     async def get_inbound_download_traffic(self, inbound_tag: str, reset: bool = False) -> Union[int, XrayError]:
         """
-        Получить размер входящего трафика по inbound
-        :param inbound_tag: тег inbound
+        Get inbound download traffic
+        :param inbound_tag: inbound tag
         :return:
         """
         stub = stats_command_pb2_grpc.StatsServiceStub(self.xray_client)
@@ -110,7 +110,7 @@ class Xray(object):
         flow: str = "xtls-rprx-direct",
     ):
         """
-        Добавить пользователя
+        Add user to inbound
         :param inbound_tag:
         :param email:
         :param level:
@@ -170,7 +170,7 @@ class Xray(object):
 
     async def remove_user(self, inbound_tag: str, email: str):
         """
-        Удалить пользователя
+        Remove user from inbound
         :param inbound_tag:
         :param email:
         :return:
