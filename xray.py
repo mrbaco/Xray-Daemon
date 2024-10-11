@@ -13,9 +13,11 @@ from xray_rpc.app.stats.command import (
 from xray_rpc.common.protocol import user_pb2
 from xray_rpc.common.serial import typed_message_pb2
 from xray_rpc.proxy.shadowsocks import config_pb2 as shadowsocks_config_pb2
+from xray_rpc.proxy.shadowsocks_2022 import config_pb2 as shadowsocks_2022_config_pb2
 from xray_rpc.proxy.trojan import config_pb2 as trojan_config_pb2
 from xray_rpc.proxy.vless import account_pb2 as vless_account_pb2
 from xray_rpc.proxy.vmess import account_pb2 as vmess_account_pb2
+from xray_rpc.proxy.socks import config_pb2 as socks_config_pb2
 
 from consts import NodeTypeEnum, XrayError, ErrorEnum
 
@@ -144,11 +146,23 @@ class Xray(object):
 						shadowsocks_config_pb2.Account(password=password, cipher_type=cipher_type)
 					),
 				)
+			elif type == NodeTypeEnum.Shadowsocks_2022.value:
+				user = user_pb2.User(
+					email=email,
+					level=level,
+					account=to_typed_message(
+						shadowsocks_2022_config_pb2.User(key=password)
+					),
+				)
 			elif type == NodeTypeEnum.Trojan.value:
 				user = user_pb2.User(
 					email=email,
 					level=level,
 					account=to_typed_message(trojan_config_pb2.Account(password=password, flow=flow)),
+				)
+			elif type == NodeTypeEnum.Socks.value:
+				user = user_pb2.User(
+					account=to_typed_message(socks_config_pb2.Account(username=email, password=password)),
 				)
 			else:
 				return XrayError(ErrorEnum.InboundTypeNotFound, f"{type} not found")

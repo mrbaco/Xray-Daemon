@@ -2,6 +2,8 @@ import os
 import logging
 import json
 import asyncio
+import uuid
+import base64
 
 from dotenv import load_dotenv
 from aiohttp import web, ContentTypeError
@@ -10,7 +12,7 @@ from aiohttp.web_response import Response
 from pathlib import Path
 
 from xray import Xray
-from consts import XrayError
+from consts import XrayError, NodeTypeEnum, CIPHER_TYPE
 
 load_dotenv()
 
@@ -47,8 +49,7 @@ def dump_database():
 def error_response(
 	message: str,
 	status: int = 400,
-	code: int = 0,
-	reason: str = "Bad Request"
+	code: int = 0
 ) -> Response:
 	"""
 	Create error response
@@ -59,7 +60,11 @@ def error_response(
 	:return:
 	"""
 	logger.info(f"{status} - {message}")
-	return web.json_response({"message": message, "code": code}, status=status, reason=reason)
+	return web.json_response({"message": message, "code": code}, status=status)
+
+def generate_random_like_unique_string(length):
+    random_bytes = os.urandom(length)
+    return base64.b64encode(random_bytes).decode('utf-8')
 
 
 @routes.post(f"/{secret}/user")
@@ -94,9 +99,6 @@ async def create_user(request: Request):
 		  password:
 			type: string
 		  cipher_type:
-			type: integer
-			format: int32
-		  uuid:
 			type: string
 		  alter_id:
 			type: integer
@@ -109,6 +111,13 @@ async def create_user(request: Request):
 	responses:
 	  201:
 		description: user was created
+		schema:
+		  type: object
+		  properties:
+			uuid:
+			  type: string
+			password:
+			  type: string
 	  404:
 		description: inbound not found
 		schema:
@@ -120,7 +129,9 @@ async def create_user(request: Request):
 			  type: integer
 			  format: int32
 	  400:
-		description: user already exist OR json parse error OR inbound_tag is required OR email is required OR level is required OR type is required
+		description: user already exist OR json parse error OR 
+			inbound_tag is required OR email is required OR level is required OR 
+			type is required OR valid cipher_type is required
 		schema:
 		  type: object
 		  properties:
@@ -140,6 +151,8 @@ async def create_user(request: Request):
 			  type: integer
 			  format: int32
 	"""
+	response = {}
+
 	# Validate request
 	try:
 		data = await request.json()
@@ -158,8 +171,8 @@ async def create_user(request: Request):
 		if not "type" in data:
 			return error_response("type is required")
 		
-		if "cipher_type" in data:
-			data['cipher_type'] = int(data['cipher_type'])
+		if "cipher_type" in data and not data['cipher_type'] in CIPHER_TYPE:
+			return error_response("valid cipher_type is required")
 		
 		if "alter_id" in data:
 			data['alter_id'] = int(data['alter_id'])
@@ -169,11 +182,22 @@ async def create_user(request: Request):
 
 			if data['limit'] < 0:
 				data['limit'] = 0
+		
+		if data['type']  == NodeTypeEnum.VMess.value or data['type'] == NodeTypeEnum.VLess.value:
+			data['uuid'] = str(uuid.uuid4())
+			response = {"uuid": data['uuid']}
+		else:
+			if data['cipher_type'] == "2022-blake3-aes-128-gcm":
+				data['password'] = generate_random_like_unique_string(16)
+			else:
+				data['password'] = generate_random_like_unique_string(32)
+
+			response = {"password": data['password']}
 			
 	except (ContentTypeError, ValueError) as e:
 		return error_response("error in JSON parsing")
 	
-	# execure user creation
+	# execute user creation
 	result = await xray.add_user(
 		inbound_tag=data['inbound_tag'],
 		email=data['email'],
@@ -204,7 +228,7 @@ async def create_user(request: Request):
 
 	logger.info(f"create new user {data['email']} for inbound {data['inbound_tag']}")
 	
-	return web.Response(status=201)
+	return web.json_response(response, status=201)
 
 
 @routes.get(f"/{secret}/user/{{inbound_tag}}/{{email}}")
@@ -503,13 +527,7 @@ async def health_check(_: Request):
 	  418:
 		description: everything is good
 	"""
-	return web.json_response(
-		{
-			"status": "working"
-		},
-		status=418,
-		reason="I am a vacuum cleaner"
-	)
+	return web.json_response({"status": "working"}, status=418, reason="I am a vacuum cleaner")
 
 async def push_database():
 	# add users from database to Xray

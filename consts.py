@@ -1,21 +1,12 @@
 from enum import Enum
 
-from xray_rpc.proxy.shadowsocks.config_pb2 import (
-    NONE,
-    UNKNOWN,
-    AES_128_GCM,
-    AES_256_GCM,
-    CHACHA20_POLY1305,
-    XCHACHA20_POLY1305,
-)
-
-
 class NodeTypeEnum(Enum):
     Shadowsocks = "shadowsocks"
-    ShadowsocksR = "shadowsocksr"
+    Shadowsocks_2022 = "shadowsocks_2022"
     VMess = "vmess"
     VLess = "vless"
     Trojan = "trojan"
+    Socks = "socks"
 
 
 class ErrorEnum:
@@ -27,13 +18,16 @@ class ErrorEnum:
     XrayError = 6
 
 
-CIPHER_TYPE_DICT = {
-    "none": NONE,
-    "unknown": UNKNOWN,
-    "aes-128-gcm": AES_128_GCM,
-    "aes-256-gcm": AES_256_GCM,
-    "chacha20-poly1305": CHACHA20_POLY1305,
-    "xchacha20-poly1305": XCHACHA20_POLY1305,
+CIPHER_TYPE = {
+    "unknown": 0,
+    "aes-128-gcm": 5,
+    "aes-256-gcm": 6,
+    "chacha20-poly1305": 7,
+    "xchacha20-poly1305": 8,
+    "none": 9,
+    "2022-blake3-aes-128-gcm": 0,
+    "2022-blake3-aes-256-gcm": 0,
+    "2022-blake3-chacha20-poly1305": 0,
 }
 
 
