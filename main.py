@@ -16,7 +16,7 @@ from typing import Union
 from xray import Xray
 from consts import XrayError, NodeTypeEnum, CIPHER_TYPE
 
-load_dotenv()
+load_dotenv(override=True)
 
 # init logger
 logging.basicConfig(
@@ -81,7 +81,6 @@ async def add_user(inbound_tag: str, user: dict) -> Union[int, XrayError]:
 		flow=user.get("flow", "xtls-rprx-direct"),
 	)
 
-@routes.post(f"/{secret}/user")
 async def create_user(request: Request):
 	"""
 	Add user to inbound.
@@ -191,17 +190,16 @@ async def create_user(request: Request):
 		if "alter_id" in data:
 			data['alter_id'] = int(data['alter_id'])
 		
-		if "limit" in data:
-			data['limit'] = int(data['limit'])
+		data['limit'] = int(data.get("limit", 0))
 
-			if data['limit'] < 0:
-				data['limit'] = 0
+		if data['limit'] < 0:
+			data['limit'] = 0
 		
 		if data['type']  == NodeTypeEnum.VMess.value or data['type'] == NodeTypeEnum.VLess.value:
 			data['uuid'] = str(uuid.uuid4())
 			response = {"uuid": data['uuid']}
 		else:
-			if data['cipher_type'] == "2022-blake3-aes-128-gcm":
+			if data.get("cipher_type") == "2022-blake3-aes-128-gcm":
 				data['password'] = secrets.token_urlsafe(16)
 			else:
 				data['password'] = secrets.token_urlsafe(32)
@@ -211,15 +209,24 @@ async def create_user(request: Request):
 	except (ContentTypeError, ValueError) as _:
 		return error_response("validation error")
 	
+	inbound_tag = data['inbound_tag']
+	del data['inbound_tag']
+
+	# check if user exists
+	user = next(filter(lambda user : user['email'] == data['email'], database[inbound_tag]), None)
+
+	if user != None:
+		return error_response("user already exist", 400)
+	
 	# execute user creation
-	result = await add_user(data['inbound_tag'], data)
+	result = await add_user(inbound_tag, data)
 
 	if type(result) is XrayError:
-		return error_response(result.message, 500, result.code, "Internal Server Error")
+		return error_response(result.message, 500, result.code)
 	
 	# create inbound_tag in database if not exists
-	if not data['inbound_tag'] in database:
-		database.update({data['inbound_tag']: []})
+	if not inbound_tag in database:
+		database.update({inbound_tag: []})
 	
 	# add user to inbound and dump database
 	date = get_today()
@@ -231,16 +238,14 @@ async def create_user(request: Request):
 		"reset_traffic_date": date
 	})
 	
-	database['inbound_tag'].append(data)
+	database[inbound_tag].append(data)
 
 	dump_database()
 
-	logger.info(f"create new user {data['email']} for inbound {data['inbound_tag']}")
+	logger.info(f"create new user {data['email']} for inbound {inbound_tag}")
 	
 	return web.json_response(response, status=201)
 
-
-@routes.get(f"/{secret}/user/{{inbound_tag}}/{{email}}")
 async def get_user(request: Request):
 	"""
 	Get user from inbound.
@@ -315,18 +320,16 @@ async def get_user(request: Request):
 
 	if not inbound_tag in database:
 		return error_response("inbound was not found", 404)
-	
+
 	user = next(filter(lambda user : user['email'] == email, database[inbound_tag]), None)
 
 	if user == None:
 		return error_response("user was not found", 404)
-	
+
 	logger.info(f"user {inbound_tag}/{email} info was requested")
 	
 	return web.json_response(user)
 
-
-@routes.delete(f"/{secret}/user/{{inbound_tag}}/{{email}}")
 async def delete_user(request: Request):
 	"""
 	Remove user from inbound.
@@ -385,7 +388,7 @@ async def delete_user(request: Request):
 	result = await xray.remove_user(inbound_tag, email)
 
 	if type(result) is XrayError:
-		return error_response(result.message, 500, result.code, "Internal Server Error")
+		return error_response(result.message, 500, result.code)
 	
 	database[inbound_tag][:] = [d for d in database[inbound_tag] if d['email'] != email]
 	dump_database()
@@ -394,8 +397,6 @@ async def delete_user(request: Request):
 
 	return web.Response(status=204)
 
-
-@routes.put(f"/{secret}/user/{{inbound_tag}}/{{email}}")
 async def update_user(request: Request):
 	"""
 	Update user.
@@ -497,8 +498,6 @@ async def update_user(request: Request):
 
 	return web.Response(status=204)
 
-
-@routes.get(f"/{secret}/stats")
 async def get_stats(_: Request):
 	"""
 	Get server statistic.
@@ -550,12 +549,7 @@ async def get_stats(_: Request):
 			else:
 				error = upload_traffic
 
-			return error_response(
-				error.message,
-				500,
-				error.code,
-				"Internal Server Error"
-			)
+			return error_response(error.message, 500, error.code)
 		
 		result.append({
 			"inbound_tag": inbound_tag,
@@ -567,8 +561,6 @@ async def get_stats(_: Request):
 
 	return web.json_response(result)
 
-
-@routes.post(f"/{secret}/routine")
 async def start_routine(_: Request):
 	"""
 	Run routine operations (update user traffic, 
@@ -597,51 +589,53 @@ async def start_routine(_: Request):
 			download_traffic = await xray.get_user_download_traffic(user['email'])
 			upload_traffic = await xray.get_user_upload_traffic(user['email'])
 
-			if type(download_traffic) is XrayError or type(upload_traffic) is XrayError:
-				if type(download_traffic) is XrayError:
-					error = download_traffic
-				else:
-					error = upload_traffic
-
-				return error_response(
-					error.message,
-					500,
-					error.code,
-					"Internal Server Error"
-				)
-			
-			user['traffic'] = download_traffic + upload_traffic
-
 			# compare traffic and limit then set inactive due traffic overage
-			if (
-				user['limit'] != 0 and 
-	   			user['traffic'] >= user['limit'] and
-				user['active'] == True
-			):
-				user['active'] = False
+			if not type(download_traffic) is XrayError and not type(upload_traffic) is XrayError:
+				user['traffic'] = download_traffic + upload_traffic
 
-				# remove user
-				result = await xray.remove_user(inbound_tag, user['email'])
+				if (
+					user['limit'] != 0 and 
+					user['traffic'] >= user['limit'] and
+					user['active'] == True
+				):
+					user['active'] = False
 
-				if type(result) is XrayError:
-					return error_response(result.message, 500, result.code, "Internal Server Error")
-				
-				logger.info(f"block user {inbound_tag}/{user['email']} due traffic overage")
+					# remove user
+					result = await xray.remove_user(inbound_tag, user['email'])
+
+					if type(result) is XrayError:
+						logger.error(f"{result.code} {result.message}")
+						continue
+					
+					logger.info(f"block user {inbound_tag}/{user['email']} due traffic overage")
 			
 			# reset traffic after reset period
 			if user['active'] == False:
-				using_period = mktime(gmtime) - mktime(strptime(user['reset_traffic_date'], os.getenv("DATE_TIME_FORMAT")))
+				using_period = mktime(gmtime()) - mktime(strptime(user['reset_traffic_date'], os.getenv("DATE_TIME_FORMAT")))
 
-				if using_period >= os.getenv("RESET_TRAFFIC_PERIOD"):
+				if using_period >= float(os.getenv("RESET_TRAFFIC_PERIOD")):
 					user['active'] = True
 					user['traffic'] = 0
 					user['reset_traffic_date'] = get_today()
 
 					# restore user
-					result = await add_user(inbound_tag, user)
+					add_user_result = await add_user(inbound_tag, user)
 
-					if type(result) is XrayError:
-						return error_response(result.message, 500, result.code, "Internal Server Error")
+					# reset user traffic
+					reset_dtraffic_result = await xray.get_user_download_traffic(user['email'], True)
+					reset_utraffic_result = await xray.get_user_upload_traffic(user['email'], True)
+
+					if type(add_user_result) is XrayError:
+						logger.error(f"{add_user_result.code} {add_user_result.message}")
+						continue
+
+					if type(reset_dtraffic_result) is XrayError:
+						logger.error(f"{reset_dtraffic_result.code} {reset_dtraffic_result.message}")
+						continue
+
+					if type(reset_utraffic_result) is XrayError:
+						logger.error(f"{reset_utraffic_result.code} {reset_utraffic_result.message}")
+						continue
 					
 					logger.info(f"restore user {inbound_tag}/{user['email']} after reset traffic period")
 	
@@ -649,8 +643,6 @@ async def start_routine(_: Request):
 
 	return web.Response(status=204)
 
-
-@routes.get(f"/health")
 async def health_check(_: Request):
 	"""
 	Check daemon/server availability
@@ -679,10 +671,19 @@ async def push_database():
 
 if __name__ == "__main__":
 	asyncio.run(push_database())
-
+	
 	# start daemon
 	app = web.Application()
-	app.add_routes(routes)
+
+	app.add_routes([
+		web.post(f"/{secret}/user", create_user),
+		web.get(f"/{secret}/user/{{inbound_tag}}/{{email}}", get_user),
+		web.delete(f"/{secret}/user/{{inbound_tag}}/{{email}}", delete_user),
+		web.put(f"/{secret}/user/{{inbound_tag}}/{{email}}", update_user),
+		web.get(f"/{secret}/stats", get_stats),
+		web.post(f"/{secret}/routine", start_routine),
+		web.get(f"/health", health_check),
+	])
 
 	web.run_app(
 		app,
