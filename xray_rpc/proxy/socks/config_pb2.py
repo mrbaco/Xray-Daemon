@@ -12,7 +12,7 @@ from google.protobuf.internal import builder as _builder
 _runtime_version.ValidateProtobufRuntimeVersion(
     _runtime_version.Domain.PUBLIC,
     5,
-    27,
+    28,
     2,
     '',
     'proxy/socks/config.proto'
@@ -22,8 +22,8 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
-from common.net import address_pb2 as common_dot_net_dot_address__pb2
-from common.protocol import server_spec_pb2 as common_dot_protocol_dot_server__spec__pb2
+from xray_rpc.common.net import address_pb2 as common_dot_net_dot_address__pb2
+from xray_rpc.common.protocol import server_spec_pb2 as common_dot_protocol_dot_server__spec__pb2
 
 
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x18proxy/socks/config.proto\x12\x10xray.proxy.socks\x1a\x18\x63ommon/net/address.proto\x1a!common/protocol/server_spec.proto\"-\n\x07\x41\x63\x63ount\x12\x10\n\x08username\x18\x01 \x01(\t\x12\x10\n\x08password\x18\x02 \x01(\t\"\x85\x02\n\x0cServerConfig\x12-\n\tauth_type\x18\x01 \x01(\x0e\x32\x1a.xray.proxy.socks.AuthType\x12>\n\x08\x61\x63\x63ounts\x18\x02 \x03(\x0b\x32,.xray.proxy.socks.ServerConfig.AccountsEntry\x12,\n\x07\x61\x64\x64ress\x18\x03 \x01(\x0b\x32\x1b.xray.common.net.IPOrDomain\x12\x13\n\x0budp_enabled\x18\x04 \x01(\x08\x12\x12\n\nuser_level\x18\x06 \x01(\r\x1a/\n\rAccountsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"D\n\x0c\x43lientConfig\x12\x34\n\x06server\x18\x01 \x03(\x0b\x32$.xray.common.protocol.ServerEndpoint*%\n\x08\x41uthType\x12\x0b\n\x07NO_AUTH\x10\x00\x12\x0c\n\x08PASSWORD\x10\x01\x42R\n\x14\x63om.xray.proxy.socksP\x01Z%github.com/xtls/xray-core/proxy/socks\xaa\x02\x10Xray.Proxy.Socksb\x06proto3')

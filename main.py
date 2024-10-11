@@ -3,13 +3,15 @@ import logging
 import json
 import asyncio
 import uuid
-import base64
+import secrets
 
 from dotenv import load_dotenv
 from aiohttp import web, ContentTypeError
 from aiohttp.web_request import Request
 from aiohttp.web_response import Response
 from pathlib import Path
+from time import gmtime, strftime, strptime, mktime
+from typing import Union
 
 from xray import Xray
 from consts import XrayError, NodeTypeEnum, CIPHER_TYPE
@@ -20,7 +22,7 @@ load_dotenv()
 logging.basicConfig(
 	filename=os.getenv("DAEMON_LOG"),
 	level=logging.INFO,
-	format="%(asctime)s %(levelname)s %(message)s"
+	format=os.getenv("DAEMON_LOG_FORMAT")
 )
 
 # create instance of Xray-class and connect to it Xray by GRPC
@@ -38,6 +40,10 @@ database = {}
 if Path(os.getenv("DATABASE_FILE")).is_file():
 	with open(os.getenv("DATABASE_FILE")) as f:
 		database = json.load(f)
+
+
+def get_today() -> str:
+	return strftime(os.getenv("DATE_TIME_FORMAT"), gmtime())
 
 def dump_database():
 	"""
@@ -62,10 +68,18 @@ def error_response(
 	logger.info(f"{status} - {message}")
 	return web.json_response({"message": message, "code": code}, status=status)
 
-def generate_random_like_unique_string(length):
-    random_bytes = os.urandom(length)
-    return base64.b64encode(random_bytes).decode('utf-8')
-
+async def add_user(inbound_tag: str, user: dict) -> Union[int, XrayError]:
+	return await xray.add_user(
+		inbound_tag=inbound_tag,
+		email=user['email'],
+		level=user['level'],
+		type=user['type'],
+		password=user.get("password", ""),
+		cipher_type=CIPHER_TYPE[user.get("cipher_type", "unknown")],
+		uuid=user.get("uuid", ""),
+		alter_id=user.get("alter_id", 0),
+		flow=user.get("flow", "xtls-rprx-direct"),
+	)
 
 @routes.post(f"/{secret}/user")
 async def create_user(request: Request):
@@ -129,7 +143,7 @@ async def create_user(request: Request):
 			  type: integer
 			  format: int32
 	  400:
-		description: user already exist OR json parse error OR 
+		description: user already exist OR validation error OR 
 			inbound_tag is required OR email is required OR level is required OR 
 			type is required OR valid cipher_type is required
 		schema:
@@ -188,27 +202,17 @@ async def create_user(request: Request):
 			response = {"uuid": data['uuid']}
 		else:
 			if data['cipher_type'] == "2022-blake3-aes-128-gcm":
-				data['password'] = generate_random_like_unique_string(16)
+				data['password'] = secrets.token_urlsafe(16)
 			else:
-				data['password'] = generate_random_like_unique_string(32)
+				data['password'] = secrets.token_urlsafe(32)
 
 			response = {"password": data['password']}
 			
-	except (ContentTypeError, ValueError) as e:
-		return error_response("error in JSON parsing")
+	except (ContentTypeError, ValueError) as _:
+		return error_response("validation error")
 	
 	# execute user creation
-	result = await xray.add_user(
-		inbound_tag=data['inbound_tag'],
-		email=data['email'],
-		level=data['level'],
-		type=data['type'],
-		password=data.get("password", ""),
-		cipher_type=data.get("cipher_type", 0),
-		uuid=data.get("uuid", ""),
-		alter_id=data.get("alter_id", 0),
-		flow=data.get("flow", "xtls-rprx-direct"),
-	)
+	result = await add_user(data['inbound_tag'], data)
 
 	if type(result) is XrayError:
 		return error_response(result.message, 500, result.code, "Internal Server Error")
@@ -218,12 +222,17 @@ async def create_user(request: Request):
 		database.update({data['inbound_tag']: []})
 	
 	# add user to inbound and dump database
+	date = get_today()
+
 	data.update({
 		"traffic": 0,
-		"active": True
+		"active": True,
+		"creation_date": date,
+		"reset_traffic_date": date
 	})
 	
 	database['inbound_tag'].append(data)
+
 	dump_database()
 
 	logger.info(f"create new user {data['email']} for inbound {data['inbound_tag']}")
@@ -286,6 +295,10 @@ async def get_user(request: Request):
 			  format: int64
 			active:
 			  type: boolean
+			creation_date:
+			  type: string
+			reset_traffic_date:
+			  type: string
 	  404:
 		description: inbound or user was not found
 		schema:
@@ -308,7 +321,10 @@ async def get_user(request: Request):
 	if user == None:
 		return error_response("user was not found", 404)
 	
+	logger.info(f"user {inbound_tag}/{email} info was requested")
+	
 	return web.json_response(user)
+
 
 @routes.delete(f"/{secret}/user/{{inbound_tag}}/{{email}}")
 async def delete_user(request: Request):
@@ -366,7 +382,7 @@ async def delete_user(request: Request):
 	if user == None:
 		return error_response("user was not found", 404)
 	
-	result = xray.remove_user(inbound_tag, email)
+	result = await xray.remove_user(inbound_tag, email)
 
 	if type(result) is XrayError:
 		return error_response(result.message, 500, result.code, "Internal Server Error")
@@ -374,11 +390,116 @@ async def delete_user(request: Request):
 	database[inbound_tag][:] = [d for d in database[inbound_tag] if d['email'] != email]
 	dump_database()
 
+	logger.info(f"user {inbound_tag}/{email} was fully deleted")
+
+	return web.Response(status=204)
+
+
+@routes.put(f"/{secret}/user/{{inbound_tag}}/{{email}}")
+async def update_user(request: Request):
+	"""
+	Update user.
+
+	---
+	tags:
+	- User
+	produces:
+	- application/json
+	parameters:
+	- name: inbound_tag
+	  in: path
+	  type: string
+	  required: true
+	  description: inbound tag
+	- name: email
+	  in: path
+	  type: string
+	  required: true
+	  description: user e-mail
+	- in: body
+	  name: body
+	  description: User data
+	  required: true
+	  schema:
+		type: object
+		properties:
+		  active:
+			type: boolean
+		  limit:
+			type: integer
+			format: int64
+	responses:
+	  204:
+		description: user was updated
+	  400:
+		description: validation error
+		schema:
+		  type: object
+		  properties:
+			message:
+			  type: string
+			code:
+			  type: integer
+			  format: int32
+	  404:
+		description: inbound or user not found
+		schema:
+		  type: object
+		  properties:
+			message:
+			  type: string
+			code:
+			  type: integer
+			  format: int32
+	  500:
+		description: Xray error
+		schema:
+		  type: object
+		  properties:
+			message:
+			  type: string
+			code:
+			  type: integer
+			  format: int32
+	"""
+	inbound_tag = request.match_info.get("inbound_tag")
+	email = request.match_info.get("email")
+
+	if not inbound_tag in database:
+		return error_response("inbound was not found", 404)
+	
+	user = next(filter(lambda user : user['email'] == email, database[inbound_tag]), None)
+
+	if user == None:
+		return error_response("user was not found", 404)
+
+	try:
+		data = await request.json()
+
+		if "limit" in data:
+			data['limit'] = int(data['limit'])
+
+			if data['limit'] < 0:
+				data['limit'] = 0
+
+			user['limit'] = data['limit']
+		
+		if "active" in data:
+			if data['active'] != True:
+				data['active'] == False
+
+			user['active'] = data['active']
+
+	except (ContentTypeError, ValueError) as _:
+		return error_response("validation error")
+
+	dump_database()
+
 	return web.Response(status=204)
 
 
 @routes.get(f"/{secret}/stats")
-async def get_stats(request: Request):
+async def get_stats(_: Request):
 	"""
 	Get server statistic.
 
@@ -420,23 +541,19 @@ async def get_stats(request: Request):
 	result = []
 
 	for inbound_tag in database:
-		download_traffic = xray.get_inbound_download_traffic(inbound_tag)
+		download_traffic = await xray.get_inbound_download_traffic(inbound_tag)
+		upload_traffic = await xray.get_inbound_upload_traffic(inbound_tag)
 
-		if type(download_traffic) is XrayError:
+		if type(download_traffic) is XrayError or type(upload_traffic) is XrayError:
+			if type(download_traffic) is XrayError:
+				error = download_traffic
+			else:
+				error = upload_traffic
+
 			return error_response(
-				download_traffic.message,
+				error.message,
 				500,
-				download_traffic.code,
-				"Internal Server Error"
-			)
-
-		upload_traffic = xray.get_inbound_upload_traffic(inbound_tag)
-
-		if type(upload_traffic) is XrayError:
-			return error_response(
-				upload_traffic.message,
-				500,
-				upload_traffic.code,
+				error.code,
 				"Internal Server Error"
 			)
 		
@@ -446,10 +563,13 @@ async def get_stats(request: Request):
 			"upload_traffic": upload_traffic
 		})
 	
+	logger.info(f"server stats were requested")
+
 	return web.json_response(result)
 
+
 @routes.post(f"/{secret}/routine")
-async def start_routine(request: Request):
+async def start_routine(_: Request):
 	"""
 	Run routine operations (update user traffic, 
 		control limits and block users).
@@ -473,40 +593,57 @@ async def start_routine(request: Request):
 	# iterate users
 	for inbound_tag in database:
 		for user in database[inbound_tag]:
-			download_traffic = xray.get_user_download_traffic(user['email'])
+			# update traffic
+			download_traffic = await xray.get_user_download_traffic(user['email'])
+			upload_traffic = await xray.get_user_upload_traffic(user['email'])
 
-			if type(download_traffic) is XrayError:
+			if type(download_traffic) is XrayError or type(upload_traffic) is XrayError:
+				if type(download_traffic) is XrayError:
+					error = download_traffic
+				else:
+					error = upload_traffic
+
 				return error_response(
-					download_traffic.message,
+					error.message,
 					500,
-					download_traffic.code,
-					"Internal Server Error"
-				)
-
-			upload_traffic = xray.get_user_upload_traffic(user['email'])
-
-			if type(upload_traffic) is XrayError:
-				return error_response(
-					upload_traffic.message,
-					500,
-					upload_traffic.code,
+					error.code,
 					"Internal Server Error"
 				)
 			
-			# update traffic
 			user['traffic'] = download_traffic + upload_traffic
 
-			# compare traffic and limits
-			if user['limit'] != 0 and user['traffic'] >= user['limit']:
+			# compare traffic and limit then set inactive due traffic overage
+			if (
+				user['limit'] != 0 and 
+	   			user['traffic'] >= user['limit'] and
+				user['active'] == True
+			):
 				user['active'] = False
 
 				# remove user
-				result = xray.remove_user(inbound_tag, user['email'])
+				result = await xray.remove_user(inbound_tag, user['email'])
 
 				if type(result) is XrayError:
 					return error_response(result.message, 500, result.code, "Internal Server Error")
 				
-				database[inbound_tag][:] = [d for d in database[inbound_tag] if d['email'] != user['email']]
+				logger.info(f"block user {inbound_tag}/{user['email']} due traffic overage")
+			
+			# reset traffic after reset period
+			if user['active'] == False:
+				using_period = mktime(gmtime) - mktime(strptime(user['reset_traffic_date'], os.getenv("DATE_TIME_FORMAT")))
+
+				if using_period >= os.getenv("RESET_TRAFFIC_PERIOD"):
+					user['active'] = True
+					user['traffic'] = 0
+					user['reset_traffic_date'] = get_today()
+
+					# restore user
+					result = await add_user(inbound_tag, user)
+
+					if type(result) is XrayError:
+						return error_response(result.message, 500, result.code, "Internal Server Error")
+					
+					logger.info(f"restore user {inbound_tag}/{user['email']} after reset traffic period")
 	
 	dump_database()
 
@@ -529,22 +666,13 @@ async def health_check(_: Request):
 	"""
 	return web.json_response({"status": "working"}, status=418, reason="I am a vacuum cleaner")
 
+
 async def push_database():
-	# add users from database to Xray
+	# add active users from database to Xray
 	for inbound_tag in database:
 		for user in database[inbound_tag]:
 			if user.get("active", False) == True:
-				result = await xray.add_user(
-					inbound_tag=inbound_tag,
-					email=user['email'],
-					level=user['level'],
-					type=user['type'],
-					password=user.get("password", ""),
-					cipher_type=user.get("cipher_type", 0),
-					uuid=user.get("uuid", ""),
-					alter_id=user.get("alter_id", 0),
-					flow=user.get("flow", "xtls-rprx-direct"),
-				)
+				result = await add_user(inbound_tag, user)
 
 				if type(result) is XrayError:
 					logger.error(result.message)
