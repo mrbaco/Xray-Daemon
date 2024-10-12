@@ -26,8 +26,8 @@ def to_typed_message(message: _message):
 	return typed_message_pb2.TypedMessage(type=message.DESCRIPTOR.full_name, value=message.SerializeToString())
 
 class Xray(object):
-	def __init__(self, local_api_host: str, local_api_port: int):
-		self.xray_client = grpc.insecure_channel(target=f"{local_api_host}:{local_api_port}")
+	def __init__(self, api_host: str, api_port: int):
+		self.xray_client = grpc.insecure_channel(target=f"{api_host}:{api_port}")
 
 	async def get_user_upload_traffic(self, email: str, reset: bool = False) -> Union[int, XrayError]:
 		"""
@@ -108,9 +108,8 @@ class Xray(object):
 		password: str = "",
 		cipher_type: int = 0,
 		uuid: str = "",
-		alter_id: int = 0,
 		flow: str = "xtls-rprx-direct",
-	):
+	) -> Union[None, XrayError]:
 		"""
 		Add user to inbound
 		:param inbound_tag:
@@ -120,7 +119,6 @@ class Xray(object):
 		:param password:
 		:param cipher_type:
 		:param uuid:
-		:param alter_id:
 		:param flow:
 		:return:
 		"""
@@ -130,15 +128,25 @@ class Xray(object):
 				user = user_pb2.User(
 					email=email,
 					level=level,
-					account=to_typed_message(vmess_account_pb2.Account(id=uuid, alter_id=alter_id)),
+					account=to_typed_message(vmess_account_pb2.Account(id=uuid)),
 				)
 			elif type == NodeTypeEnum.VLess.value:
 				user = user_pb2.User(
 					email=email,
 					level=level,
-					account=to_typed_message(vless_account_pb2.Account(id=uuid, alter_id=alter_id)),
+					account=to_typed_message(vless_account_pb2.Account(id=uuid, flow=flow)),
 				)
 			elif type == NodeTypeEnum.Shadowsocks.value:
+				try:
+					stub.AlterInbound(
+						proxyman_command_pb2.AlterInboundRequest(
+							tag=inbound_tag,
+							operation=to_typed_message(proxyman_command_pb2.RemoveUserOperation(email=email)),
+						)
+					)
+				except grpc.RpcError as _:
+					pass
+
 				user = user_pb2.User(
 					email=email,
 					level=level,
@@ -151,7 +159,7 @@ class Xray(object):
 					email=email,
 					level=level,
 					account=to_typed_message(
-						shadowsocks_2022_config_pb2.User(key=password)
+						shadowsocks_2022_config_pb2.User(email=email, key=password, level=level)
 					),
 				)
 			elif type == NodeTypeEnum.Trojan.value:
@@ -162,11 +170,13 @@ class Xray(object):
 				)
 			elif type == NodeTypeEnum.Socks.value:
 				user = user_pb2.User(
+					email=email,
+					level=level,
 					account=to_typed_message(socks_config_pb2.Account(username=email, password=password)),
 				)
 			else:
 				return XrayError(ErrorEnum.InboundTypeNotFound, f"{type} not found")
-
+			
 			stub.AlterInbound(
 				proxyman_command_pb2.AlterInboundRequest(
 					tag=inbound_tag,
@@ -175,6 +185,7 @@ class Xray(object):
 			)
 		except grpc.RpcError as rpc_err:
 			detail = rpc_err.details()
+
 			if detail.endswith(f"User {email} already exists."):
 				return XrayError(ErrorEnum.EmailExistsError, detail)
 			elif detail.endswith(f"handler not found: {inbound_tag}"):

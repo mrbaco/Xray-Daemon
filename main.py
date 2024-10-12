@@ -77,7 +77,6 @@ async def add_user(inbound_tag: str, user: dict) -> Union[int, XrayError]:
 		password=user.get("password", ""),
 		cipher_type=CIPHER_TYPE[user.get("cipher_type", "unknown")],
 		uuid=user.get("uuid", ""),
-		alter_id=user.get("alter_id", 0),
 		flow=user.get("flow", "xtls-rprx-direct"),
 	)
 
@@ -91,6 +90,11 @@ async def create_user(request: Request):
 	produces:
 	- application/json
 	parameters:
+	- name: inbound_tag
+	  in: path
+	  type: string
+	  required: true
+	  description: inbound tag
 	- in: body
 	  name: body
 	  description: User data
@@ -98,9 +102,6 @@ async def create_user(request: Request):
 	  schema:
 		type: object
 		properties:
-		  inbound_tag:
-			type: string
-			required: true
 		  email:
 			type: string
 			required: true
@@ -113,9 +114,6 @@ async def create_user(request: Request):
 			type: string
 		  cipher_type:
 			type: string
-		  alter_id:
-			type: integer
-			format: int32
 		  flow:
 			type: string
 		  limit:
@@ -131,16 +129,6 @@ async def create_user(request: Request):
 			  type: string
 			password:
 			  type: string
-	  404:
-		description: inbound not found
-		schema:
-		  type: object
-		  properties:
-			message:
-			  type: string
-			code:
-			  type: integer
-			  format: int32
 	  400:
 		description: user already exist OR validation error OR 
 			inbound_tag is required OR email is required OR level is required OR 
@@ -166,29 +154,20 @@ async def create_user(request: Request):
 	"""
 	response = {}
 
-	# Validate request
+	inbound_tag = request.match_info.get("inbound_tag")
+
+	# Validate JSON-body
 	try:
 		data = await request.json()
-
-		if not "inbound_tag" in data:
-			return error_response("inbound_tag is required")
 			
 		if not "email" in data:
-			return error_response("email is required")
-			
-		if not "level" in data:
-			return error_response("level is required")
-		else:
-			data['level'] = int(data['level'])
+			return error_response("email is required", code=11)
 			
 		if not "type" in data:
-			return error_response("type is required")
+			return error_response("type is required", code=12)
 		
 		if "cipher_type" in data and not data['cipher_type'] in CIPHER_TYPE:
-			return error_response("valid cipher_type is required")
-		
-		if "alter_id" in data:
-			data['alter_id'] = int(data['alter_id'])
+			return error_response("valid cipher_type is required", code=13)
 		
 		data['limit'] = int(data.get("limit", 0))
 
@@ -200,23 +179,26 @@ async def create_user(request: Request):
 			response = {"uuid": data['uuid']}
 		else:
 			if data.get("cipher_type") == "2022-blake3-aes-128-gcm":
-				data['password'] = secrets.token_urlsafe(16)
+				data['password'] = secrets.token_urlsafe(64)[0:24]
 			else:
-				data['password'] = secrets.token_urlsafe(32)
+				data['password'] = secrets.token_urlsafe(64)[0:44]
 
 			response = {"password": data['password']}
+
+		if data['type'] == NodeTypeEnum.Shadowsocks_2022.value:
+			del data['cipher_type']
+		
+		data['level'] = int(data.get("level", 0))
 			
 	except (ContentTypeError, ValueError) as _:
-		return error_response("validation error")
-	
-	inbound_tag = data['inbound_tag']
-	del data['inbound_tag']
+		return error_response("validation error", code=14)
 
 	# check if user exists
-	user = next(filter(lambda user : user['email'] == data['email'], database[inbound_tag]), None)
+	if inbound_tag in database:
+		user = next(filter(lambda user : user['email'] == data['email'], database[inbound_tag]), None)
 
-	if user != None:
-		return error_response("user already exist", 400)
+		if user != None:
+			return error_response("user already exist in database", code=15)
 	
 	# execute user creation
 	result = await add_user(inbound_tag, data)
@@ -224,7 +206,7 @@ async def create_user(request: Request):
 	if type(result) is XrayError:
 		return error_response(result.message, 500, result.code)
 	
-	# create inbound_tag in database if not exists
+	# create inbound_tag in database if not exist
 	if not inbound_tag in database:
 		database.update({inbound_tag: []})
 	
@@ -287,9 +269,6 @@ async def get_user(request: Request):
 			  format: int32
 			uuid:
 			  type: string
-			alter_id:
-			  type: integer
-			  format: int32
 			flow:
 			  type: string
 			traffic:
@@ -319,12 +298,12 @@ async def get_user(request: Request):
 	email = request.match_info.get("email")
 
 	if not inbound_tag in database:
-		return error_response("inbound was not found", 404)
+		return error_response("inbound was not found", 404, 21)
 
 	user = next(filter(lambda user : user['email'] == email, database[inbound_tag]), None)
 
 	if user == None:
-		return error_response("user was not found", 404)
+		return error_response("user was not found", 404, 22)
 
 	logger.info(f"user {inbound_tag}/{email} info was requested")
 	
@@ -378,12 +357,12 @@ async def delete_user(request: Request):
 	email = request.match_info.get("email")
 
 	if not inbound_tag in database:
-		return error_response("inbound was not found", 404)
+		return error_response("inbound was not found", 404, 31)
 	
 	user = next(filter(lambda user : user['email'] == email, database[inbound_tag]), None)
 
 	if user == None:
-		return error_response("user was not found", 404)
+		return error_response("user was not found", 404, 32)
 	
 	result = await xray.remove_user(inbound_tag, email)
 
@@ -424,11 +403,10 @@ async def update_user(request: Request):
 	  schema:
 		type: object
 		properties:
-		  active:
-			type: boolean
 		  limit:
 			type: integer
 			format: int64
+	  		required: true
 	responses:
 	  204:
 		description: user was updated
@@ -467,32 +445,28 @@ async def update_user(request: Request):
 	email = request.match_info.get("email")
 
 	if not inbound_tag in database:
-		return error_response("inbound was not found", 404)
+		return error_response("inbound was not found", 404, 41)
 	
 	user = next(filter(lambda user : user['email'] == email, database[inbound_tag]), None)
 
 	if user == None:
-		return error_response("user was not found", 404)
+		return error_response("user was not found", 404, 42)
 
 	try:
 		data = await request.json()
 
-		if "limit" in data:
-			data['limit'] = int(data['limit'])
-
-			if data['limit'] < 0:
-				data['limit'] = 0
-
-			user['limit'] = data['limit']
+		if not "limit" in data:
+			return error_response("limit is required", code=44)
 		
-		if "active" in data:
-			if data['active'] != True:
-				data['active'] == False
+		data['limit'] = int(data['limit'])
 
-			user['active'] = data['active']
+		if data['limit'] < 0:
+			data['limit'] = 0
 
 	except (ContentTypeError, ValueError) as _:
-		return error_response("validation error")
+		return error_response("validation error", code=45)
+	
+	user['limit'] = data['limit']
 
 	dump_database()
 
@@ -608,6 +582,18 @@ async def start_routine(_: Request):
 						continue
 					
 					logger.info(f"block user {inbound_tag}/{user['email']} due traffic overage")
+
+				if (
+					user['active'] == False and 
+					(
+						user['limit'] == 0 or
+						user['limit'] > user['traffic']
+					)
+				):
+					user['reset_traffic_date'] = strftime(
+						os.getenv("DATE_TIME_FORMAT"),
+						gmtime(mktime(gmtime()) - float(os.getenv("RESET_TRAFFIC_PERIOD")))
+					)
 			
 			# reset traffic after reset period
 			if user['active'] == False:
@@ -676,7 +662,7 @@ if __name__ == "__main__":
 	app = web.Application()
 
 	app.add_routes([
-		web.post(f"/{secret}/user", create_user),
+		web.post(f"/{secret}/user/{{inbound_tag}}", create_user),
 		web.get(f"/{secret}/user/{{inbound_tag}}/{{email}}", get_user),
 		web.delete(f"/{secret}/user/{{inbound_tag}}/{{email}}", delete_user),
 		web.put(f"/{secret}/user/{{inbound_tag}}/{{email}}", update_user),

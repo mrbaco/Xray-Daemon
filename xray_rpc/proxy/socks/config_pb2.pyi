@@ -1,5 +1,5 @@
-from common.net import address_pb2 as _address_pb2
-from common.protocol import server_spec_pb2 as _server_spec_pb2
+from xray_rpc.common.net import address_pb2 as _address_pb2
+from xray_rpc.common.protocol import server_spec_pb2 as _server_spec_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor

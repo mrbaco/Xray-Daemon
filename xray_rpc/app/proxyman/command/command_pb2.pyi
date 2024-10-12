@@ -1,5 +1,5 @@
-from common.protocol import user_pb2 as _user_pb2
-from common.serial import typed_message_pb2 as _typed_message_pb2
+from xray_rpc.common.protocol import user_pb2 as _user_pb2
+from xray_rpc.common.serial import typed_message_pb2 as _typed_message_pb2
 from core import config_pb2 as _config_pb2
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message

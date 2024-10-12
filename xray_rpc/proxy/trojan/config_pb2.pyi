@@ -1,5 +1,5 @@
-from common.protocol import user_pb2 as _user_pb2
-from common.protocol import server_spec_pb2 as _server_spec_pb2
+from xray_rpc.common.protocol import user_pb2 as _user_pb2
+from xray_rpc.common.protocol import server_spec_pb2 as _server_spec_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
