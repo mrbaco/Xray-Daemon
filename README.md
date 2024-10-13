@@ -31,3 +31,4 @@ DATE_TIME_FORMAT=%d.%m.%Y %H:%M:%S
 RESET_TRAFFIC_PERIOD=2635200
 ```
 
+You're free to use `DAEMON_SOCKET_PATH` instead of `DAEMON_HOST` and `DAEMON_PORT` to serve requests using unix socket.

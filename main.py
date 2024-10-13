@@ -671,8 +671,15 @@ if __name__ == "__main__":
 		web.get(f"/health", health_check),
 	])
 
-	web.run_app(
-		app,
-		host=os.getenv("DAEMON_HOST"),
-		port=int(os.getenv("DAEMON_PORT"))
-	)
+	if os.getenv("DAEMON_SOCKET_PATH") == None:
+		web.run_app(
+			app,
+			host=os.getenv("DAEMON_HOST"),
+			port=int(os.getenv("DAEMON_PORT"))
+		)
+	else:
+		web.run_app(
+			app,
+			path=os.getenv("DAEMON_SOCKET_PATH"),
+			port=int(os.getenv("DAEMON_PORT"))
+		)
