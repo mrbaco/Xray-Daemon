@@ -680,6 +680,5 @@ if __name__ == "__main__":
 	else:
 		web.run_app(
 			app,
-			path=os.getenv("DAEMON_SOCKET_PATH"),
-			port=int(os.getenv("DAEMON_PORT"))
+			path=os.getenv("DAEMON_SOCKET_PATH")
 		)
