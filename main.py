@@ -110,8 +110,6 @@ async def create_user(request: Request):
 			format: int32
 		  type:
 			type: string
-		  password:
-			type: string
 		  cipher_type:
 			type: string
 		  flow:
@@ -662,10 +660,10 @@ if __name__ == "__main__":
 	app = web.Application()
 
 	app.add_routes([
-		web.post(f"/{secret}/user/{{inbound_tag}}", create_user),
-		web.get(f"/{secret}/user/{{inbound_tag}}/{{email}}", get_user),
-		web.delete(f"/{secret}/user/{{inbound_tag}}/{{email}}", delete_user),
-		web.put(f"/{secret}/user/{{inbound_tag}}/{{email}}", update_user),
+		web.post(f"/{secret}/users/{{inbound_tag}}", create_user),
+		web.get(f"/{secret}/users/{{inbound_tag}}/{{email}}", get_user),
+		web.delete(f"/{secret}/users/{{inbound_tag}}/{{email}}", delete_user),
+		web.put(f"/{secret}/users/{{inbound_tag}}/{{email}}", update_user),
 		web.get(f"/{secret}/stats", get_stats),
 		web.post(f"/{secret}/routine", start_routine),
 		web.get(f"/health", health_check),
