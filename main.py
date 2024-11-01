@@ -561,10 +561,11 @@ async def start_routine(_: Request):
 			download_traffic = await xray.get_user_download_traffic(user['email'])
 			upload_traffic = await xray.get_user_upload_traffic(user['email'])
 
-			# compare traffic and limit then set inactive due traffic overage
+			
 			if not type(download_traffic) is XrayError and not type(upload_traffic) is XrayError:
 				user['traffic'] = download_traffic + upload_traffic
 
+				# compare traffic and limit then set inactive due traffic overage
 				if (
 					user['limit'] != 0 and 
 					user['traffic'] >= user['limit'] and
@@ -581,6 +582,7 @@ async def start_routine(_: Request):
 					
 					logger.info(f"block user {inbound_tag}/{user['email']} due traffic overage")
 
+				# move reset traffic date to now for blocked users cause not traffic overage
 				if (
 					user['active'] == False and 
 					(
@@ -593,8 +595,11 @@ async def start_routine(_: Request):
 						gmtime(mktime(gmtime()) - float(os.getenv("RESET_TRAFFIC_PERIOD")))
 					)
 			
-			# reset traffic after reset period
-			if user['active'] == False:
+			# reset traffic after reset period for traffic overage users
+			if (
+				user['active'] == False and
+				user['traffic'] >= user['limit']
+			):
 				using_period = mktime(gmtime()) - mktime(strptime(user['reset_traffic_date'], os.getenv("DATE_TIME_FORMAT")))
 
 				if using_period >= float(os.getenv("RESET_TRAFFIC_PERIOD")):
