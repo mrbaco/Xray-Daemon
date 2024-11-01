@@ -596,10 +596,7 @@ async def start_routine(_: Request):
 					)
 			
 			# reset traffic after reset period for traffic overage users
-			if (
-				user['active'] == False and
-				user['traffic'] >= user['limit']
-			):
+			if user['active'] == False:
 				using_period = mktime(gmtime()) - mktime(strptime(user['reset_traffic_date'], os.getenv("DATE_TIME_FORMAT")))
 
 				if using_period >= float(os.getenv("RESET_TRAFFIC_PERIOD")):
