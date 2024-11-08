@@ -457,7 +457,7 @@ async def update_user(request: Request):
 	try:
 		data = await request.json()
 
-		if not "limit" in data or not "blocked" in data:
+		if not "limit" in data and not "blocked" in data:
 			return error_response("limit or blocked are required", code=44)
 		
 	except (ContentTypeError, ValueError) as _:
