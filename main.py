@@ -566,44 +566,48 @@ async def start_routine(_: Request):
 	# iterate users
 	for inbound_tag in database:
 		for user in database[inbound_tag]:
+			active = user['active']
+
 			# update traffic
 			download_traffic = await xray.get_user_download_traffic(user['email'])
 			upload_traffic = await xray.get_user_upload_traffic(user['email'])
 
+			# block previously blocked user
+			if (
+				user['active'] == True and
+				user['blocked'] == True
+			):
+				user['active'] = False
+
+			# compare traffic and limit then set inactive due traffic overage
 			if not type(download_traffic) is XrayError and not type(upload_traffic) is XrayError:
 				user['traffic'] = download_traffic + upload_traffic
 
-				# compare traffic and limit then set inactive due traffic overage OR previously blocked
 				if (
-					(
-						user['limit'] != 0 and
-						user['traffic'] > user['limit'] and
-						user['active'] == True
-					) or (
-						user['active'] == True and
-						user['blocked'] == True
-					)
+					user['limit'] != 0 and
+					user['traffic'] > user['limit'] and
+					user['active'] == True
 				):
 					user['active'] = False
 
-					# remove user
-					result = await xray.remove_user(inbound_tag, user['email'])
+			# remove user
+			if user['active'] != active:
+				result = await xray.remove_user(inbound_tag, user['email'])
 
-					if type(result) is XrayError:
-						logger.error(f"{result.code} {result.message}")
-						continue
-					
+				if type(result) is XrayError:
+					logger.error(f"{result.code} {result.message}")
+				else:					
 					logger.info(f"block user {inbound_tag}/{user['email']}")
 
-				# move reset traffic date to now for blocked users cause not traffic overage
-				if (
-					user['active'] == False and 
-					user['blocked'] == True
-				):
-					user['reset_traffic_date'] = strftime(
-						os.getenv("DATE_TIME_FORMAT"),
-						gmtime(mktime(gmtime()) - float(os.getenv("RESET_TRAFFIC_PERIOD")))
-					)
+			# move reset traffic date to now for blocked users cause not traffic overage
+			if (
+				user['active'] == False and 
+				user['blocked'] == True
+			):
+				user['reset_traffic_date'] = strftime(
+					os.getenv("DATE_TIME_FORMAT"),
+					gmtime(mktime(gmtime()) - float(os.getenv("RESET_TRAFFIC_PERIOD")))
+				)
 			
 			# reset traffic after reset period for traffic overage users
 			if (
