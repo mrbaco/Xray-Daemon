@@ -214,6 +214,7 @@ async def create_user(request: Request):
 	data.update({
 		"traffic": 0,
 		"active": True,
+		"blocked": False,
 		"creation_date": date,
 		"reset_traffic_date": date
 	})
@@ -276,6 +277,8 @@ async def get_user(request: Request):
 			  type: integer
 			  format: int64
 			active:
+			  type: boolean
+			blocked:
 			  type: boolean
 			creation_date:
 			  type: string
@@ -404,7 +407,8 @@ async def update_user(request: Request):
 		  limit:
 			type: integer
 			format: int64
-	  		required: true
+		  blocked:
+		    type: boolean
 	responses:
 	  204:
 		description: user was updated
@@ -453,18 +457,23 @@ async def update_user(request: Request):
 	try:
 		data = await request.json()
 
-		if not "limit" in data:
-			return error_response("limit is required", code=44)
+		if not "limit" in data or not "blocked" in data:
+			return error_response("limit or blocked are required", code=44)
 		
-		data['limit'] = int(data['limit'])
-
-		if data['limit'] < 0:
-			data['limit'] = 0
-
 	except (ContentTypeError, ValueError) as _:
 		return error_response("validation error", code=45)
 	
-	user['limit'] = data['limit']
+	if "limit" in data:
+		user['limit'] = int(data['limit'])
+
+		if user['limit'] < 0:
+			user['limit'] = 0
+	
+	if "blocked" in data:
+		user['blocked'] = bool(data.get("blocked", True))
+
+		if user['blocked'] == True:
+			logger.info(f"block user {inbound_tag}/{user['email']} (still in the queue)")
 
 	dump_database()
 
@@ -561,15 +570,19 @@ async def start_routine(_: Request):
 			download_traffic = await xray.get_user_download_traffic(user['email'])
 			upload_traffic = await xray.get_user_upload_traffic(user['email'])
 
-			
 			if not type(download_traffic) is XrayError and not type(upload_traffic) is XrayError:
 				user['traffic'] = download_traffic + upload_traffic
 
-				# compare traffic and limit then set inactive due traffic overage
+				# compare traffic and limit then set inactive due traffic overage OR previously blocked
 				if (
-					user['limit'] != 0 and 
-					user['traffic'] >= user['limit'] and
-					user['active'] == True
+					(
+						user['limit'] != 0 and
+						user['traffic'] > user['limit'] and
+						user['active'] == True
+					) or (
+						user['active'] == True and
+						user['blocked'] == True
+					)
 				):
 					user['active'] = False
 
@@ -580,15 +593,12 @@ async def start_routine(_: Request):
 						logger.error(f"{result.code} {result.message}")
 						continue
 					
-					logger.info(f"block user {inbound_tag}/{user['email']} due traffic overage")
+					logger.info(f"block user {inbound_tag}/{user['email']}")
 
 				# move reset traffic date to now for blocked users cause not traffic overage
 				if (
 					user['active'] == False and 
-					(
-						user['limit'] == 0 or
-						user['limit'] > user['traffic']
-					)
+					user['blocked'] == True
 				):
 					user['reset_traffic_date'] = strftime(
 						os.getenv("DATE_TIME_FORMAT"),
@@ -596,10 +606,16 @@ async def start_routine(_: Request):
 					)
 			
 			# reset traffic after reset period for traffic overage users
-			if user['active'] == False:
+			if (
+				user['active'] == False and
+				user['blocked'] == False
+			):
 				using_period = mktime(gmtime()) - mktime(strptime(user['reset_traffic_date'], os.getenv("DATE_TIME_FORMAT")))
 
-				if using_period >= float(os.getenv("RESET_TRAFFIC_PERIOD")):
+				if (
+					using_period >= float(os.getenv("RESET_TRAFFIC_PERIOD")) or
+					user['traffic'] <= user['limit']
+				):
 					user['active'] = True
 					user['traffic'] = 0
 					user['reset_traffic_date'] = get_today()
