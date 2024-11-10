@@ -227,6 +227,78 @@ async def create_user(request: Request):
 	
 	return web.json_response(response, status=201)
 
+async def get_users(request: Request):
+	"""
+	Get all users from inbound.
+
+	---
+	tags:
+	- User
+	produces:
+	- application/json
+	parameters:
+	- name: inbound_tag
+	  in: path
+	  type: string
+	  required: true
+	  description: inbound tag
+	responses:
+	  200:
+		description: users were found
+		schema:
+		  type: array
+		  items:
+			type: object
+		    properties:
+		      email:
+			    type: string
+			    required: true
+			  level:
+			    type: integer
+			    format: int32
+			  type:
+			    type: string
+			  password:
+			    type: string
+			  cipher_type:
+			    type: integer
+			    format: int32
+			  uuid:
+			    type: string
+			  flow:
+			    type: string
+			  traffic:
+			    type: integer
+			    format: int64
+			  limit:
+			    type: integer
+			    format: int64
+			  active:
+			    type: boolean
+			  blocked:
+			    type: boolean
+			  creation_date:
+			    type: string
+			  reset_traffic_date:
+			    type: string
+	  404:
+		description: inbound was not found
+		schema:
+		  type: object
+		  properties:
+			message:
+			  type: string
+			code:
+			  type: integer
+			  format: int32
+	"""
+	inbound_tag = request.match_info.get("inbound_tag")
+
+	if not inbound_tag in database:
+		return error_response("inbound was not found", 404, 21)
+	
+	return web.json_response(database[inbound_tag])
+
 async def get_user(request: Request):
 	"""
 	Get user from inbound.
@@ -299,12 +371,12 @@ async def get_user(request: Request):
 	email = request.match_info.get("email")
 
 	if not inbound_tag in database:
-		return error_response("inbound was not found", 404, 21)
+		return error_response("inbound was not found", 404, 31)
 
 	user = next(filter(lambda user : user['email'] == email, database[inbound_tag]), None)
 
 	if user == None:
-		return error_response("user was not found", 404, 22)
+		return error_response("user was not found", 404, 32)
 
 	logger.info(f"user {inbound_tag}/{email} info was requested")
 	
@@ -358,12 +430,12 @@ async def delete_user(request: Request):
 	email = request.match_info.get("email")
 
 	if not inbound_tag in database:
-		return error_response("inbound was not found", 404, 31)
+		return error_response("inbound was not found", 404, 41)
 	
 	user = next(filter(lambda user : user['email'] == email, database[inbound_tag]), None)
 
 	if user == None:
-		return error_response("user was not found", 404, 32)
+		return error_response("user was not found", 404, 42)
 	
 	result = await xray.remove_user(inbound_tag, email)
 
@@ -447,21 +519,21 @@ async def update_user(request: Request):
 	email = request.match_info.get("email")
 
 	if not inbound_tag in database:
-		return error_response("inbound was not found", 404, 41)
+		return error_response("inbound was not found", 404, 51)
 	
 	user = next(filter(lambda user : user['email'] == email, database[inbound_tag]), None)
 
 	if user == None:
-		return error_response("user was not found", 404, 42)
+		return error_response("user was not found", 404, 52)
 
 	try:
 		data = await request.json()
 
 		if not "limit" in data and not "blocked" in data:
-			return error_response("limit or blocked are required", code=44)
+			return error_response("limit or blocked are required", code=53)
 		
 	except (ContentTypeError, ValueError) as _:
-		return error_response("validation error", code=45)
+		return error_response("validation error", code=54)
 	
 	if "limit" in data:
 		user['limit'] = int(data['limit'])
@@ -683,6 +755,7 @@ if __name__ == "__main__":
 
 	app.add_routes([
 		web.post(f"/{secret}/users/{{inbound_tag}}", create_user),
+		web.get(f"/{secret}/users/{{inbound_tag}}", get_users),
 		web.get(f"/{secret}/users/{{inbound_tag}}/{{email}}", get_user),
 		web.delete(f"/{secret}/users/{{inbound_tag}}/{{email}}", delete_user),
 		web.put(f"/{secret}/users/{{inbound_tag}}/{{email}}", update_user),
