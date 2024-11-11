@@ -178,8 +178,10 @@ async def create_user(request: Request):
 		else:
 			if data.get("cipher_type") == "2022-blake3-aes-128-gcm":
 				data['password'] = secrets.token_urlsafe(64)[0:24]
-			else:
+			elif data.get("cipher_type") == "2022-blake3-aes-256-gcm":
 				data['password'] = secrets.token_urlsafe(64)[0:44]
+			else:
+				data['password'] = secrets.token_urlsafe(64)[0:22]
 
 			response = {"password": data['password']}
 
