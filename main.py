@@ -655,7 +655,7 @@ async def start_routine(_: Request):
 
 			# compare traffic and limit then set inactive due traffic overage
 			if not type(download_traffic) is XrayError and not type(upload_traffic) is XrayError:
-				user['traffic'] += download_traffic + upload_traffic
+				user['traffic'] = download_traffic + upload_traffic
 
 				if (
 					user['limit'] != 0 and
