@@ -441,7 +441,7 @@ async def delete_user(request: Request):
 	
 	result = await xray.remove_user(inbound_tag, email)
 
-	if type(result) is XrayError:
+	if type(result) is XrayError and "not found" not in result.message:
 		return error_response(result.message, 500, result.code)
 	
 	database[inbound_tag][:] = [d for d in database[inbound_tag] if d['email'] != email]
