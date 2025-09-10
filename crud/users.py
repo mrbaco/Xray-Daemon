@@ -51,7 +51,11 @@ def create_user(
         else:
             password = secrets.token_urlsafe(64)[0:22]
 
-    if user_data.type == schemas.NodeTypeEnum.Shadowsocks_2022:
+    if user_data.cipher_type in (
+        schemas.CipherType.ss2022_blake3_aes_128_gcm,
+        schemas.CipherType.ss2022_blake3_aes_256_gcm,
+        schemas.CipherType.ss2022_blake3_chacha20_poly1305
+    ):
         user_data.cipher_type = None
 
     user = models.User(
