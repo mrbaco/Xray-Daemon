@@ -19,7 +19,7 @@ from xray_rpc.proxy.vless import account_pb2 as vless_account_pb2
 from xray_rpc.proxy.vmess import account_pb2 as vmess_account_pb2
 from xray_rpc.proxy.socks import config_pb2 as socks_config_pb2
 
-from consts import NodeTypeEnum, XrayError, ErrorEnum
+from schemas import NodeTypeEnum, XrayError, ErrorEnum
 
 
 def to_typed_message(message: _message):

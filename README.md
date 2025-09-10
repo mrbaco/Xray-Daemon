@@ -27,32 +27,38 @@ python3 -m venv /home/$(whoami)/xray-daemon/.venv
 
 3. Create `.env`-file with content (don't forget to fill in the gaps):
 ```bash
+ENV=dev
+
 GRPC_URL=127.0.0.1
 GRPC_PORT=8000
-DAEMON_HOST=127.0.0.1
-DAEMON_PORT=123
-SECRET=
-DAEMON_LOG=
-DAEMON_LOG_FORMAT=%(asctime)s %(levelname)s %(message)s
-DATABASE_FILE=
-DATE_TIME_FORMAT=%d.%m.%Y %H:%M:%S
-RESET_TRAFFIC_PERIOD=2635200
-```
 
-You're free to use `DAEMON_SOCKET_PATH` instead of `DAEMON_HOST` and `DAEMON_PORT` to serve requests using unix socket.
+LOKI_URL=http://loki/
+LOKI_LOGIN=loki
+LOKI_PASSWORD=loki
+
+DATABASE_CONNECTION_STRING=sqlite:///database.db
+
+RESET_TRAFFIC_PERIOD_SECONDS=2635200
+
+TIMEZONE=Europe/Moscow
+```
 
 4. Create service `/etc/systemd/system/xray-daemon.service` to serve requests (in this example I use socket):
 ```bash
 printf "[Unit]
 Description=Xray REST API daemon to proxy requests
 After=multi-user.target
+After=xray.service
+Requires=xray.service
+PartOf=xray.service
 
 [Service]
 Type=idle
 User=$(whoami)
-ExecStart=/home/$(whoami)/xray-daemon/.venv/bin/python /home/$(whoami)/xray-daemon/main.py
+ExecStart=/home/$(whoami)/xray-daemon/.venv/bin/fastapi run main.py --host=127.0.0.1 --port=9001
+ExecReload=/home/$(whoami)/xray-daemon/.venv/bin/fastapi run main.py --host=127.0.0.1 --port=9001
+WorkingDirectory=/home/$(whoami)/
 ExecStartPost=/usr/bin/sleep 5
-ExecStartPost=chmod 666 /tmp/xray-daemon.sock
 Restart=always
 
 [Install]
@@ -68,7 +74,7 @@ sudo systemctl start xray-daemon.service
 
 6. Create self-signed certificate to secure connect to daemon through Nginx:
 ```bash
-sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -subj "/CN=your_public_ip_or_hostname" -keyout /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt -batch
+sudo openssl req -x509 -nodes -days 36500 -newkey rsa:2048 --addext "subjectAltName=IP:your_public_ip_or_hostname" -keyout /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt -batch
 sudo openssl dhparam -out /etc/ssl/certs/dhparam.pem 2048
 ```
 
@@ -77,10 +83,10 @@ sudo openssl dhparam -out /etc/ssl/certs/dhparam.pem 2048
 server {
     listen 55000 ssl;
 
-	ssl_certificate /etc/ssl/certs/nginx-selfsigned.crt;
+    ssl_certificate /etc/ssl/certs/nginx-selfsigned.crt;
 	ssl_certificate_key /etc/ssl/private/nginx-selfsigned.key;
 
-    ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+	ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
 	ssl_prefer_server_ciphers on;
 	ssl_ciphers "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH";
 	ssl_ecdh_curve secp384r1;
@@ -98,12 +104,8 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_redirect off;
         proxy_buffering off;
-        proxy_pass http://xray_daemon;
+        proxy_pass http://localhost:9001;
     }
-}
-
-upstream xray_daemon {
-	server unix:/tmp/xray-daemon.sock fail_timeout=0;
 }
 ```
 
