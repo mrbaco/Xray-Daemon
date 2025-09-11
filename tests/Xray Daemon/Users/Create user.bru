@@ -1,0 +1,28 @@
+meta {
+  name: Create user
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{local_url}}/v1/users/:inbound_tag/
+  body: json
+  auth: inherit
+}
+
+params:path {
+  inbound_tag: VLESS
+}
+
+body:json {
+  {
+    "email": "mrbaco",
+    "limit": 322122547200,
+    "type": "vless",
+    "flow": "xtls-rprx-vision"
+  }
+}
+
+settings {
+  encodeUrl: true
+}

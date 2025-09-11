@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Xray Daemon",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

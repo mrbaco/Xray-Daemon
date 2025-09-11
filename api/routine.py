@@ -1,14 +1,15 @@
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from sqlalchemy.orm import Session
-from fastapi import APIRouter, Depends, status
+from sqlalchemy.exc import SQLAlchemyError
+from fastapi import APIRouter, BackgroundTasks, Depends, status
 
 import os, pytz
 
-from database import XRAY_INSTANCE, get_session
+from database import XRAY_INSTANCE, SessionLocal
 from loki_logger import LOGGER
 from schemas import XrayError
 from crud import users
+from security import check_api_key
 
 import schemas
 
@@ -17,141 +18,205 @@ load_dotenv('../.env')
 
 router = APIRouter(prefix='/v1/routine', tags=['Routine'])
 
-@router.get('/', status_code=status.HTTP_204_NO_CONTENT)
-async def run(
-    session: Session = Depends(get_session)
-):
-    usersList, _ = users.get_users(session)
-    now = datetime.now(pytz.timezone(os.getenv('TIMEZONE')))
+async def process():
+    session = SessionLocal()
 
-    for user in usersList:
-        user_data = schemas.UpdateUser(
-            traffic=user.traffic,
-            limit=user.limit,
-            active=user.active,
-            blocked=user.blocked,
-            reset_traffic_date=user.reset_traffic_date
-        )
+    try:
+        usersList, _ = users.get_users(session)
 
-        # update traffic
-        download_traffic = await XRAY_INSTANCE.get_user_download_traffic(user.email)
-        upload_traffic = await XRAY_INSTANCE.get_user_upload_traffic(user.email)
+        now = datetime.now(pytz.timezone(os.getenv('TIMEZONE')))
+        reset_traffic_period = float(os.getenv("RESET_TRAFFIC_PERIOD_SECONDS"))
 
-        # block previously blocked user
-        if (
-            user_data.active == True and
-            user_data.blocked == True
-        ):
-            user_data.active = False
+        for user in usersList:
+            user_data = schemas.UpdateUser(
+                traffic=user.traffic,
+                limit=user.limit,
+                active=user.active,
+                blocked=user.blocked,
+                reset_traffic_date=user.reset_traffic_date
+            )
+
+            is_need_to_reset = user_data.reset_traffic_date + timedelta(seconds=reset_traffic_period) <= now
+
+            # get user traffic info
+            download_traffic = await XRAY_INSTANCE.get_user_download_traffic(user.email, is_need_to_reset)
+            upload_traffic = await XRAY_INSTANCE.get_user_upload_traffic(user.email, is_need_to_reset)
+
+            if is_need_to_reset == False:
+                user_data.traffic = (
+                    download_traffic if not type(download_traffic) is XrayError else 0 +
+                    upload_traffic if not type(upload_traffic) is XrayError else 0
+                )
 
             # compare traffic and limit then set inactive due traffic overage
-            if not type(download_traffic) is XrayError and not type(upload_traffic) is XrayError:
-                user_data.traffic = download_traffic + upload_traffic
+            is_traffic_overage = (
+                user_data.limit != 0 and
+                user_data.traffic > user_data.limit
+            )
+
+            if (
+                is_traffic_overage == True and
+                user_data.active == True
+            ):
+                is_traffic_overage = True
+                user_data.active = False
+
+            # reset traffic after "reset traffic date" + "reset traffic period"
+            if is_need_to_reset:
+                if (
+                    user_data.active == False and
+                    user_data.blocked == False
+                ):
+                    user_data.active = True
+
+                user_data.traffic = 0
+                user_data.reset_traffic_date = now
 
                 if (
-                    user_data.limit != 0 and
-                    user_data.traffic > user_data.limit and
-                    user_data.active == True
+                    type(is_need_to_reset) is XrayError or
+                    type(upload_traffic) is XrayError
                 ):
-                    user_data.active = False
+                    error_msg = []
 
-            # remove user
-            if user_data.active != user.active:
-                result = await XRAY_INSTANCE.remove_user(user.inbound_tag, user.email)
+                    error_msg.append(is_need_to_reset.message if type(is_need_to_reset) is XrayError else '')
+                    error_msg.append(upload_traffic.message if type(upload_traffic) is XrayError else '')
 
-                if type(result) is XrayError:
                     LOGGER.error(
-                        'XRAY ERROR',
+                        'RESET TRAFFIC ERROR',
                         extra={
                             'tags': {
-                                'error_msg': result.message,
-                                'user.email': user.email
+                                'error_msg': '\n'.join(error_msg),
+                                'email': user.email
                             }
                         },
                         exc_info=True,
                     )
 
-            # move reset traffic date to now for blocked users cause not traffic overage
+            # inactivate previously blocked user
             if (
-                user_data.active == False and 
+                user_data.active == True and
                 user_data.blocked == True
             ):
-                user_data.reset_traffic_date = now - timedelta(seconds=float(os.getenv("RESET_TRAFFIC_PERIOD_SECONDS")))
+                user_data.active = False
 
-            # reset traffic after reset period for traffic overage users
+            # activate previously unblocked user
             if (
                 user_data.active == False and
-                user_data.blocked == False
+                user_data.blocked == False and
+                is_traffic_overage == False
             ):
-                using_period = (now - user_data.reset_traffic_date).seconds
+                user_data.active = True
 
-                if (
-                    using_period >= float(os.getenv("RESET_TRAFFIC_PERIOD_SECONDS")) or
-                    user_data.traffic <= user_data.limit
-                ):
-                    user_data.active = True
-                    user_data.traffic = 0
-                    user_data.reset_traffic_date = now
+            # remove user
+            if (
+                user_data.active == False and
+                user.active == True
+            ):
+                result = await XRAY_INSTANCE.remove_user(user.inbound_tag, user.email)
 
-                    # restore user
-                    add_user_result = await XRAY_INSTANCE.add_user(
-                        inbound_tag=user.inbound_tag,
-                        email=user.email,
-                        level=user.level,
-                        type=user.type,
-                        password=user.password,
-                        cipher_type=user.cipher_type,
-                        uuid=user.uuid,
-                        flow=user.flow,
+                if type(result) is XrayError:
+                    LOGGER.error(
+                        'REMOVE USER ERROR',
+                        extra={
+                            'tags': {
+                                'error_msg': result.message,
+                                'email': user.email
+                            }
+                        },
+                            exc_info=True,
+                    )
+                else:
+                    LOGGER.info(
+                        'INACTIVATE USER',
+                        extra={
+                            'tags': {
+                                'email': user.email
+                            }
+                        }
                     )
 
-                    # reset user traffic
-                    reset_dtraffic_result = await XRAY_INSTANCE.get_user_download_traffic(user.email, True)
-                    reset_utraffic_result = await XRAY_INSTANCE.get_user_upload_traffic(user.email, True)
+            # add user
+            elif (
+                user_data.active == True and
+                user.active == False
+            ):
+                user_data.traffic = 0
+                user_data.reset_traffic_date = now
 
-                    if type(add_user_result) is XrayError:
-                        LOGGER.error(
-                            'XRAY ERROR',
-                            extra={
-                                'tags': {
-                                    'error_msg': add_user_result.message,
-                                    'user.email': user.email
-                                }
-                            },
-                            exc_info=True,
-                        )
+                result = await XRAY_INSTANCE.add_user(
+                    inbound_tag=user.inbound_tag,
+                    email=user.email,
+                    level=user.level,
+                    type=user.type,
+                    password=user.password,
+                    cipher_type=user.cipher_type,
+                    uuid=user.uuid,
+                    flow=user.flow,
+                )
 
-                    if type(reset_dtraffic_result) is XrayError:
-                        LOGGER.error(
-                            'XRAY ERROR',
-                            extra={
-                                'tags': {
-                                    'error_msg': reset_dtraffic_result.message,
-                                    'user.email': user.email
-                                }
-                            },
-                            exc_info=True,
-                        )
+                if type(result) is XrayError:
+                    LOGGER.error(
+                        'ADD USER ERROR',
+                        extra={
+                            'tags': {
+                                'error_msg': result.message,
+                                'email': user.email
+                            }
+                        },
+                        exc_info=True,
+                    )
+                else:
+                    LOGGER.info(
+                        'ACTIVATE USER',
+                        extra={
+                            'tags': {
+                                'email': user.email
+                            }
+                        }
+                    )
 
-                    if type(reset_utraffic_result) is XrayError:
-                        LOGGER.error(
-                            'XRAY ERROR',
-                            extra={
-                                'tags': {
-                                    'error_msg': reset_utraffic_result.message,
-                                    'user.email': user.email
-                                }
-                            },
-                            exc_info=True,
-                        )
+            if not users.update_user(session, user.inbound_tag, user.email, user_data):
+                LOGGER.error(
+                    'UPDATE USER ERROR',
+                    extra={
+                        'tags': {
+                            'email': user.email
+                        }
+                    },
+                    exc_info=True,
+                )
 
-        if not users.update_user(session, user.inbound_tag, user.email, user_data):
-            LOGGER.error(
-                'UPDATE USER ERROR',
-                extra={
-                    'tags': {
-                        'user.email': user.email
-                    }
-                },
-                exc_info=True,
-            )
+    except SQLAlchemyError as e:
+        session.rollback()
+
+        LOGGER.error(
+            'PROCESSING ERROR (SQL)',
+            extra={
+                'tags': {
+                    'error_type': type(e).__name__,
+                    'error_msg': str(e)
+                }
+            },
+            exc_info=True,
+        )
+
+    except Exception as e:
+        LOGGER.error(
+            'PROCESSING ERROR',
+            extra={
+                'tags': {
+                    'error_type': type(e).__name__,
+                    'error_msg': str(e)
+                }
+            },
+            exc_info=True,
+        )
+
+    session.close()
+
+@router.post('/', status_code=status.HTTP_202_ACCEPTED)
+async def run(
+    background_tasks: BackgroundTasks,
+    _ = Depends(check_api_key)
+):
+    background_tasks.add_task(process)

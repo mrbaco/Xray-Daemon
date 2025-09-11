@@ -1,0 +1,29 @@
+meta {
+  name: Update user
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{local_url}}/v1/users/:inbound_tag/:email/
+  body: json
+  auth: inherit
+}
+
+params:path {
+  email: mrbaco3
+  inbound_tag: VLESS
+}
+
+body:json {
+  {
+    "traffic": 0,
+    "limit": 322122547200,
+    "active": false,
+    "blocked": false
+  }
+}
+
+settings {
+  encodeUrl: true
+}

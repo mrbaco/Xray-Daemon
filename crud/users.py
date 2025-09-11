@@ -62,9 +62,9 @@ def create_user(
         inbound_tag=inbound_tag,
         email=user_data.email,
         level=user_data.level,
-        type=user_data.type.value,
+        type=user_data.type.value if user_data.type else None,
         password=password,
-        cipher_type=user_data.cipher_type.value,
+        cipher_type=user_data.cipher_type.value if user_data.cipher_type else None,
         uuid=uuid_str,
         flow=user_data.flow,
         limit=user_data.limit

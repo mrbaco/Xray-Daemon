@@ -41,6 +41,8 @@ DATABASE_CONNECTION_STRING=sqlite:///database.db
 RESET_TRAFFIC_PERIOD_SECONDS=2635200
 
 TIMEZONE=Europe/Moscow
+
+X_API_KEY=asdasd
 ```
 
 4. Create service `/etc/systemd/system/xray-daemon.service` to serve requests (in this example I use socket):

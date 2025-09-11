@@ -1,0 +1,12 @@
+auth {
+  mode: apikey
+}
+
+auth:apikey {
+  key: X-API-KEY
+  value: asdasd
+  placement: header
+}
+vars:pre-request {
+  local_url: http://localhost:8000
+}

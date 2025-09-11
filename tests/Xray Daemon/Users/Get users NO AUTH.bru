@@ -1,0 +1,28 @@
+meta {
+  name: Get users NO AUTH
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{local_url}}/v1/users/:inbound_tag/
+  body: none
+  auth: none
+}
+
+params:path {
+  inbound_tag: VLESS
+}
+
+body:json {
+  {
+    "email": "mrbaco",
+    "limit": 322122547200,
+    "type": "vless",
+    "flow": "xtls-rprx-vision"
+  }
+}
+
+settings {
+  encodeUrl: true
+}

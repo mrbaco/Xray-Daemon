@@ -19,7 +19,7 @@ from xray_rpc.proxy.vless import account_pb2 as vless_account_pb2
 from xray_rpc.proxy.vmess import account_pb2 as vmess_account_pb2
 from xray_rpc.proxy.socks import config_pb2 as socks_config_pb2
 
-from schemas import NodeTypeEnum, XrayError, ErrorEnum
+from schemas import NodeTypeEnum, XrayError
 
 
 def to_typed_message(message: _message):
@@ -45,9 +45,9 @@ class Xray(object):
 		except grpc.RpcError as rpc_err:
 			detail = rpc_err.details()
 			if detail.endswith("uplink not found."):
-				return XrayError(ErrorEnum.UplinkNotFound, detail)
+				return XrayError(detail)
 			
-			return XrayError(ErrorEnum.XrayError, detail)
+			return XrayError(detail)
 
 	async def get_user_download_traffic(self, email: str, reset: bool = False) -> Union[int, XrayError]:
 		"""
@@ -65,9 +65,9 @@ class Xray(object):
 		except grpc.RpcError as rpc_err:
 			detail = rpc_err.details()
 			if detail.endswith("downlink not found."):
-				return XrayError(ErrorEnum.DownlinkNotFound, detail)
+				return XrayError(detail)
 			
-			return XrayError(ErrorEnum.XrayError, detail)
+			return XrayError(detail)
 
 	async def get_inbound_upload_traffic(self, inbound_tag: str, reset: bool = False) -> Union[int, XrayError]:
 		"""
@@ -82,7 +82,7 @@ class Xray(object):
 			)
 			return resp.stat.value
 		except grpc.RpcError as rpc_err:
-			return XrayError(ErrorEnum.XrayError, rpc_err.details())
+			return XrayError(rpc_err.details())
 
 	async def get_inbound_download_traffic(self, inbound_tag: str, reset: bool = False) -> Union[int, XrayError]:
 		"""
@@ -97,7 +97,7 @@ class Xray(object):
 			)
 			return resp.stat.value
 		except grpc.RpcError as rpc_err:
-			return XrayError(ErrorEnum.XrayError, rpc_err.details())
+			return XrayError(rpc_err.details())
 
 	async def add_user(
 		self,
@@ -175,7 +175,7 @@ class Xray(object):
 					account=to_typed_message(socks_config_pb2.Account(username=email, password=password)),
 				)
 			else:
-				return XrayError(ErrorEnum.InboundTypeNotFound, f"{type} not found")
+				return XrayError(f"{type} not found")
 			
 			stub.AlterInbound(
 				proxyman_command_pb2.AlterInboundRequest(
@@ -187,11 +187,11 @@ class Xray(object):
 			detail = rpc_err.details()
 
 			if detail.endswith(f"User {email} already exists."):
-				return XrayError(ErrorEnum.EmailExistsError, detail)
+				return XrayError(detail)
 			elif detail.endswith(f"handler not found: {inbound_tag}"):
-				return XrayError(ErrorEnum.InboundTagNotFound, detail)
+				return XrayError(detail)
 			else:
-				return XrayError(ErrorEnum.XrayError, detail)
+				return XrayError(detail)
 
 	async def remove_user(self, inbound_tag: str, email: str):
 		"""
@@ -210,8 +210,8 @@ class Xray(object):
 		except grpc.RpcError as rpc_err:
 			detail = rpc_err.details()
 			if detail.endswith(f"User {email} already exists."):
-				return XrayError(ErrorEnum.EmailExistsError, detail)
+				return XrayError(detail)
 			elif detail.endswith(f"handler not found: {inbound_tag}"):
-				return XrayError(ErrorEnum.InboundTagNotFound, detail)
+				return XrayError(detail)
 			else:
-				return XrayError(ErrorEnum.XrayError, detail)
+				return XrayError(detail)

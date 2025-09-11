@@ -67,8 +67,7 @@ async def import_database():
                             'XRAY ERROR',
                             extra={
                                 'tags': {
-                                    'error_type': type(e).__name__,
-                                    'error_msg': str(e),
+                                    'error_msg': result.message,
                                     'user.email': user.email
                                 }
                             },

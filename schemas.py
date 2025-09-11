@@ -1,21 +1,12 @@
 from enum import Enum
-from typing import List
+from typing import Generic, List
+from annotated_types import T
 from pydantic import BaseModel, Field
 from datetime import datetime
 
 
-class ErrorEnum:
-    EmailExistsError = 1
-    InboundTagNotFound = 2
-    UplinkNotFound = 3
-    DownlinkNotFound = 4
-    InboundTypeNotFound = 5
-    XrayError = 6
-
-
 class XrayError:
-    def __init__(self, code: ErrorEnum, message: str) -> None:
-        self.code = code
+    def __init__(self, message: str) -> None:
         self.message = message
 
 
@@ -53,23 +44,24 @@ class CreateUser(BaseModel):
 
 class ReadUser(BaseModel):
     id: int
+    inbound_tag: str
     email: str
-    level: int
+    level: int | None
     type: NodeTypeEnum
     password: str | None
-    cipher_type: CipherType
+    cipher_type: CipherType | None
     uuid: str | None
     flow: str
     traffic: int
     limit: int
     active: bool
     blocked: bool
-    creation_date: datetime
+    created_date: datetime
     reset_traffic_date: datetime
 
 
-class ReadUsers(BaseModel):
-    users: List[ReadUser]
+class ReadUsers(BaseModel, Generic[T]):
+    users: List[T]
 
 
 class UpdateUser(BaseModel):
@@ -86,8 +78,8 @@ class Inbound(BaseModel):
     upload_traffic: int
 
 
-class ReadStats(BaseModel):
-    inbounds: List[Inbound]
+class ReadStats(BaseModel, Generic[T]):
+    inbounds: List[T]
 
 
 class Error(BaseModel):
