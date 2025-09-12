@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: {{local_url}}/v1/users/:inbound_tag/:email/
+  url: {{prod_url}}/{{secret}}/v1/users/:inbound_tag/:email
   body: none
   auth: inherit
 }

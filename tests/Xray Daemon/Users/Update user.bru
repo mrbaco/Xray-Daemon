@@ -5,19 +5,19 @@ meta {
 }
 
 patch {
-  url: {{local_url}}/v1/users/:inbound_tag/:email/
+  url: {{prod_url}}/{{secret}}/v1/users/:inbound_tag/:email
   body: json
   auth: inherit
 }
 
 params:path {
-  email: mrbaco3
+  email: mrbaco2
   inbound_tag: VLESS
 }
 
 body:json {
   {
-    "blocked": true
+    "blocked": false
   }
 }
 

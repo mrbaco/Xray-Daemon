@@ -35,6 +35,7 @@ async def create_user(
 	)
 
     if type(result) is XrayError:
+        users.delete_user(session, inbound_tag, user.email)
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, result.message)
 
     return user
