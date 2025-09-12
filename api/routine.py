@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi import APIRouter, BackgroundTasks, Depends, status
 
-import os, pytz
+import os
 
 from database import XRAY_INSTANCE, SessionLocal
 from loki_logger import LOGGER
@@ -24,7 +24,7 @@ async def process():
     try:
         usersList, _ = users.get_users(session)
 
-        now = datetime.now(pytz.timezone(os.getenv('TIMEZONE')))
+        now = datetime.now().replace(microsecond=0)
         reset_traffic_period = float(os.getenv("RESET_TRAFFIC_PERIOD_SECONDS"))
 
         for user in usersList:
