@@ -18,14 +18,19 @@ def configure_logger(service: str) -> logging.Logger:
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
-    loki_handler = LokiHandler(
-        url=f"{os.getenv('LOKI_URL')}/loki/api/v1/push",
-        auth=(os.getenv('LOKI_LOGIN'), os.getenv('LOKI_PASSWORD')),
-        tags={'service': service, 'env': os.getenv('ENV')},
-        version='1',
-    )
-    loki_handler.setFormatter(formatter)
-    logger.addHandler(loki_handler)
+    loki_url = os.getenv('LOKI_URL')
+    loki_login = os.getenv('LOKI_LOGIN')
+    loki_password = os.getenv('LOKI_PASSWORD')
+
+    if loki_url and loki_login and loki_password:
+        loki_handler = LokiHandler(
+            url=f"{loki_url}/loki/api/v1/push",
+            auth=(loki_login, loki_password),
+            tags={'service': service, 'env': os.getenv('ENV')},
+            version='1',
+        )
+        loki_handler.setFormatter(formatter)
+        logger.addHandler(loki_handler)
 
     return logger
 

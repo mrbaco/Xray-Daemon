@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from sqlalchemy.exc import SQLAlchemyError
-from fastapi import APIRouter, BackgroundTasks, Depends, status
 
 import os
 
@@ -9,16 +8,17 @@ from database import XRAY_INSTANCE, SessionLocal
 from loki_logger import LOGGER
 from schemas import XrayError
 from crud import users
-from security import check_api_key
 
 import schemas
 
 
 load_dotenv('../.env')
 
-router = APIRouter(prefix='/v1/routine', tags=['Routine'])
-
 async def process():
+    inactivated_users = []
+    activated_users = []
+    blocked_users = []
+
     session = SessionLocal()
 
     try:
@@ -105,6 +105,7 @@ async def process():
                 user_data.blocked == False and
                 is_traffic_overage == False
             ):
+                blocked_users.append(user.email)
                 user_data.active = True
 
             # remove user
@@ -126,14 +127,7 @@ async def process():
                             exc_info=True,
                     )
                 else:
-                    LOGGER.info(
-                        'INACTIVATE USER',
-                        extra={
-                            'tags': {
-                                'email': user.email
-                            }
-                        }
-                    )
+                    inactivated_users.append(user.email)
 
             # add user
             elif (
@@ -166,14 +160,7 @@ async def process():
                         exc_info=True,
                     )
                 else:
-                    LOGGER.info(
-                        'ACTIVATE USER',
-                        extra={
-                            'tags': {
-                                'email': user.email
-                            }
-                        }
-                    )
+                    activated_users.append(user.email)
 
             if not users.update_user(session, user.inbound_tag, user.email, user_data):
                 LOGGER.error(
@@ -212,11 +199,16 @@ async def process():
             exc_info=True,
         )
 
-    session.close()
+    finally:
+        session.close()
 
-@router.post('/', status_code=status.HTTP_202_ACCEPTED)
-async def run(
-    background_tasks: BackgroundTasks,
-    _ = Depends(check_api_key)
-):
-    background_tasks.add_task(process)
+    LOGGER.info(
+        'PROCESSING RESULT',
+        extra={
+            'tags': {
+                'inactivated_users': ', '.join(inactivated_users),
+                'activated_users': ', '.join(activated_users),
+                'blocked_users': ', '.join(blocked_users)
+            }
+        }
+    )
