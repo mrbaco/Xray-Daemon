@@ -1,11 +1,14 @@
 from sqlalchemy import Integer, String, DateTime, Boolean
 from sqlalchemy.sql import func
-from sqlalchemy.orm import declarative_base, mapped_column, Mapped
+from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
+from sqlalchemy.ext.asyncio import AsyncAttrs
 
 from datetime import datetime
 
 
-Base = declarative_base()
+class Base(AsyncAttrs, DeclarativeBase):
+    pass
+
 
 class User(Base):
     __tablename__ = 'users'

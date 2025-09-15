@@ -1,37 +1,42 @@
-import secrets
-import uuid
-
-from sqlalchemy import desc
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select, Select, desc
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Tuple
+
+import secrets, uuid
 
 import models, schemas
 
 
-def get_users(
-        session: Session,
+async def get_users(
+        session: AsyncSession,
         inbound_tag: str = None,
         email: str = None
 ) -> Tuple[List[models.User], int]:
-    query = session.query(models.User)
+    query = select(models.User)
+    count_query = select(func.count()).select_from(models.User)
 
-    if inbound_tag:
-        query = query.filter(models.User.inbound_tag == inbound_tag)
+    def filters(query: Select) -> Select:
+        if inbound_tag:
+            query = query.filter(models.User.inbound_tag == inbound_tag)
 
-    if email:
-        query = query.filter(models.User.email == email)
+        if email:
+            query = query.filter(models.User.email == email)
 
-    query.order_by(desc(models.User.inbound_tag))
+        return query
 
-    total = query.count()
+    query = filters(query)
+    count_query = filters(count_query)
+
+    result = await session.execute(query.order_by(desc(models.User.inbound_tag)))
+    count_result = await session.execute(count_query)
 
     return (
-        query.all(),
-        total
+        result.scalars().all(),
+        count_result.scalar()
     )
 
-def create_user(
-        session: Session,
+async def create_user(
+        session: AsyncSession,
         inbound_tag: str,
         user_data: schemas.CreateUser
 ) -> (models.User | None):
@@ -71,19 +76,20 @@ def create_user(
     )
 
     session.add(user)
-    session.commit()
-    session.refresh(user)
+
+    await session.commit()
+    await session.refresh(user)
 
     return user
 
-def update_user(
-        session: Session,
+async def update_user(
+        session: AsyncSession,
         inbound_tag: str,
         email: str,
         user_data: schemas.UpdateUser
 ) -> (models.User | None):
-    usersList, total = get_users(session, inbound_tag, email)
-    
+    usersList, total = await get_users(session, inbound_tag, email)
+
     if total != 1:
         return False
 
@@ -92,22 +98,22 @@ def update_user(
     for key, value in user_data.model_dump(exclude_unset=True).items():
         setattr(user, key, value)
 
-    session.commit()
-    session.refresh(user)
+    await session.commit()
+    await session.refresh(user)
 
     return user
 
-def delete_user(
-        session: Session,
+async def delete_user(
+        session: AsyncSession,
         inbound_tag: str,
         email: str
 ) -> bool:
-    usersList, total = get_users(session, inbound_tag, email)
-    
+    usersList, total = await get_users(session, inbound_tag, email)
+
     if total != 1:
         return False
 
-    session.delete(usersList[0])
-    session.commit()
+    await session.delete(usersList[0])
+    await session.commit()
 
     return True

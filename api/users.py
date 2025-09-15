@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from schemas import XrayError
@@ -15,10 +15,10 @@ router = APIRouter(prefix='/v1/users', tags=['Users'])
 async def create_user(
     inbound_tag: str,
     user_data: schemas.CreateUser,
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
     _ = Depends(check_api_key)
 ):
-    user = users.create_user(session, inbound_tag, user_data)
+    user = await users.create_user(session, inbound_tag, user_data)
 
     if not user:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -35,7 +35,7 @@ async def create_user(
 	)
 
     if type(result) is XrayError:
-        users.delete_user(session, inbound_tag, user.email)
+        await users.delete_user(session, inbound_tag, user.email)
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, result.message)
 
     return user
@@ -43,23 +43,24 @@ async def create_user(
 @router.get('/{inbound_tag}', status_code=status.HTTP_200_OK, response_model=schemas.ReadUsers[schemas.ReadUser])
 async def get_users(
     inbound_tag: str,
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
     _ = Depends(check_api_key)
 ):
-    usersList, _ = users.get_users(session, inbound_tag)
+    usersList, total = await users.get_users(session, inbound_tag)
 
     return schemas.ReadUsers(
-        users=usersList
+        users=usersList,
+        total=total
     )
 
 @router.get('/{inbound_tag}/{email}', status_code=status.HTTP_200_OK, response_model=schemas.ReadUser)
 async def get_user(
     inbound_tag: str,
     email: str,
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
     _ = Depends(check_api_key)
 ):
-    usersList, total = users.get_users(session, inbound_tag, email)
+    usersList, total = await users.get_users(session, inbound_tag, email)
 
     if total != 1:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
@@ -70,10 +71,10 @@ async def get_user(
 async def remove_user(
     inbound_tag: str,
     email: str,
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
     _ = Depends(check_api_key)
 ):
-    if not users.delete_user(session, inbound_tag, email):
+    if not await users.delete_user(session, inbound_tag, email):
         raise HTTPException(status.HTTP_404_NOT_FOUND)
 
     result = await XRAY_INSTANCE.remove_user(inbound_tag, email)
@@ -86,11 +87,11 @@ async def update_user(
     inbound_tag: str,
     email: str,
     user_data: schemas.UpdateUser,
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
     _ = Depends(check_api_key)
 ):
     if user_data.limit and user_data.limit < 0:
         user_data.limit = 0
 
-    if not users.update_user(session, inbound_tag, email, user_data):
+    if not await users.update_user(session, inbound_tag, email, user_data):
         raise HTTPException(status.HTTP_404_NOT_FOUND)

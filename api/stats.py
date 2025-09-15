@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, status
 
 from schemas import XrayError
@@ -13,13 +13,13 @@ router = APIRouter(prefix='/v1/stats', tags=['Stats'])
 
 @router.get('/', status_code=status.HTTP_200_OK, response_model=schemas.ReadStats[schemas.Inbound])
 async def get_stats(
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
     _ = Depends(check_api_key)
 ):
     result = []
     inbound_tags = []
 
-    usersList, _ = get_users(session)
+    usersList, _ = await get_users(session)
 
     for user in usersList:
         if user.inbound_tag not in inbound_tags:

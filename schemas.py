@@ -62,6 +62,7 @@ class ReadUser(BaseModel):
 
 class ReadUsers(BaseModel, Generic[T]):
     users: List[T]
+    total: int
 
 
 class UpdateUser(BaseModel):

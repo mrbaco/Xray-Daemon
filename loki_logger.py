@@ -51,10 +51,12 @@ class Logger:
     async def __call__(self, request: Request, call_next) -> None:
         try:
             req_body = await request.body()
+
             try:
                 req_body = req_body.decode()
                 for _, pattern in self.patterns.items():
                     req_body = pattern.sub(r'\1*****\2', req_body)
+
             except:
                 req_body = req_body
                 self.req_body_required = False
@@ -90,6 +92,7 @@ class Logger:
                     "*":  r"\*",
                     ".":  r"\."
                 }))
+
             except:
                 resp_body = resp_body
                 self.resp_body_required = False

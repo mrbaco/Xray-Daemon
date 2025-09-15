@@ -1,5 +1,6 @@
-from sqlalchemy import create_engine, inspect
-from sqlalchemy.orm import sessionmaker
+from typing import AsyncGenerator
+from sqlalchemy import inspect
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.exc import SQLAlchemyError
 from dotenv import load_dotenv
 
@@ -24,29 +25,34 @@ XRAY_INSTANCE = Xray(
 	int(os.getenv("GRPC_PORT"))
 )
 
-engine = create_engine(DATABASE_URL)
+async_engine = create_async_engine(DATABASE_URL)
 
-if not inspect(engine).has_table('users'):
-    models.Base.metadata.create_all(bind=engine)
+SessionLocal = async_sessionmaker(async_engine, expire_on_commit=False)
 
-SessionLocal = sessionmaker(bind=engine)
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    async with SessionLocal() as session:
+        try:
+            yield session
 
-def get_session():
-    session = SessionLocal()
+        except SQLAlchemyError as e:
+            await session.rollback()
+            raise e
 
-    try:
-        yield session
-    except SQLAlchemyError as e:
-        session.rollback()
-        raise e
-    finally:
-        session.close()
+        finally:
+            await session.close()
 
 async def import_database():
+    async with async_engine.connect() as conn:
+        def create_database(sync_conn):
+            if not inspect(sync_conn).has_table('users'):
+                models.Base.metadata.create_all(bind=sync_conn)
+
+        await conn.run_sync(lambda sync_conn: create_database(sync_conn))
+
     session = SessionLocal()
 
     try:
-        usersList, total = get_users(session)
+        usersList, total = await get_users(session)
 
         if total > 0:
             for user in usersList:
@@ -75,7 +81,8 @@ async def import_database():
                         )
 
     except SQLAlchemyError as e:
-        session.rollback()
+        await session.rollback()
         raise e
+
     finally:
-        session.close()
+        await session.close()
