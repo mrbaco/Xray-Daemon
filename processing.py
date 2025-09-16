@@ -186,6 +186,8 @@ async def process():
             )
 
         except Exception as e:
+            await session.rollback()
+
             LOGGER.error(
                 'PROCESSING ERROR',
                 extra={

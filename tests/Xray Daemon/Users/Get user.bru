@@ -5,13 +5,13 @@ meta {
 }
 
 get {
-  url: {{prod_url}}/{{secret}}/v1/users/:inbound_tag/:email
+  url: {{local_url}}/v1/users/:inbound_tag/:email
   body: none
   auth: inherit
 }
 
 params:path {
-  email: mrbaco
+  email: mrbaco2
   inbound_tag: VLESS
 }
 

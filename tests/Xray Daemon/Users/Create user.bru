@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{prod_url}}/{{secret}}/v1/users/:inbound_tag
+  url: {{local_url}}/v1/users/:inbound_tag
   body: json
   auth: inherit
 }
@@ -16,7 +16,7 @@ params:path {
 
 body:json {
   {
-    "email": "mrbaco2",
+    "email": "mrbaco3",
     "limit": 322122547200,
     "type": "vless",
     "flow": "xtls-rprx-vision"

@@ -15,7 +15,7 @@ async def get_users(
     query = select(models.User)
     count_query = select(func.count()).select_from(models.User)
 
-    def filters(query: Select) -> Select:
+    def add_filters(query: Select) -> Select:
         if inbound_tag:
             query = query.filter(models.User.inbound_tag == inbound_tag)
 
@@ -24,8 +24,8 @@ async def get_users(
 
         return query
 
-    query = filters(query)
-    count_query = filters(count_query)
+    query = add_filters(query)
+    count_query = add_filters(count_query)
 
     result = await session.execute(query.order_by(desc(models.User.inbound_tag)))
     count_result = await session.execute(count_query)

@@ -129,4 +129,4 @@ class Logger:
                 exc_info=True,
             )
 
-            return JSONResponse({"message": type(e).__name__}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return JSONResponse({ "message": type(e).__name__ }, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)

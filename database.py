@@ -1,5 +1,5 @@
 from typing import AsyncGenerator
-from sqlalchemy import inspect
+from sqlalchemy import Connection, inspect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.exc import SQLAlchemyError
 from dotenv import load_dotenv
@@ -43,9 +43,11 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 async def import_database():
     async with async_engine.connect() as conn:
-        def create_database(sync_conn):
+        def create_database(sync_conn: Connection):
             if not inspect(sync_conn).has_table('users'):
                 models.Base.metadata.create_all(bind=sync_conn)
+
+            sync_conn.close()
 
         await conn.run_sync(lambda sync_conn: create_database(sync_conn))
 
