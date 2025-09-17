@@ -70,7 +70,7 @@ class Logger:
                         'body': req_body if self.req_body_required else None,
                         'length': len(req_body),
                         'query': dict(request.query_params),
-                        'ip': request.client.host,
+                        'ip': request.headers.get('X-Real-IP', request.client.host),
                     }
                 },
             )
