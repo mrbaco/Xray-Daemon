@@ -40,6 +40,7 @@ class CreateUser(BaseModel):
     cipher_type: CipherType | None = Field(default=CipherType.unknown)
     flow: str | None = Field(default='xtls-rprx-vision', max_length=32)
     limit: int | None = Field(default=0)
+    expired_date: datetime | None = Field(default=None)
 
 
 class ReadUser(BaseModel):
@@ -58,6 +59,7 @@ class ReadUser(BaseModel):
     blocked: bool
     created_date: datetime
     reset_traffic_date: datetime
+    expired_date: datetime | None
 
 
 class ReadUsers(BaseModel, Generic[T]):
@@ -71,6 +73,7 @@ class UpdateUser(BaseModel):
     active: bool | None = Field(default=None)
     blocked: bool | None = Field(default=None)
     reset_traffic_date: datetime | None = Field(default=None)
+    expired_date: datetime | None = Field(default=None)
 
 
 class Inbound(BaseModel):

@@ -28,3 +28,4 @@ class User(Base):
     blocked: Mapped[bool] = mapped_column(Boolean, default=False)
     created_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     reset_traffic_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expired_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True, server_default=None)
