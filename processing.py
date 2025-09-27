@@ -30,8 +30,8 @@ async def process():
                 user_data = schemas.UpdateUser(
                     traffic=user.traffic,
                     limit=user.limit,
-                    active=user.active,
-                    blocked=user.blocked,
+                    is_active=user.is_active,
+                    is_blocked=user.is_blocked,
                     reset_traffic_date=user.reset_traffic_date
                 )
 
@@ -54,17 +54,17 @@ async def process():
 
                 if (
                     is_traffic_overage == True and
-                    user_data.active == True
+                    user_data.is_active == True
                 ):
-                    user_data.active = False
+                    user_data.is_active = False
 
                 # reset traffic after "reset traffic date" + "reset traffic period"
                 if is_need_to_reset:
                     if (
-                        user_data.active == False and
-                        user_data.blocked == False
+                        user_data.is_active == False and
+                        user_data.is_blocked == False
                     ):
-                        user_data.active = True
+                        user_data.is_active = True
 
                     user_data.traffic = 0
                     user_data.reset_traffic_date = now
@@ -91,24 +91,24 @@ async def process():
 
                 # inactivate previously blocked user
                 if (
-                    user_data.active == True and
-                    user_data.blocked == True
+                    user_data.is_active == True and
+                    user_data.is_blocked == True
                 ):
                     blocked_users.append(user.email)
-                    user_data.active = False
+                    user_data.is_active = False
 
                 # activate previously unblocked user
                 if (
-                    user_data.active == False and
-                    user_data.blocked == False and
+                    user_data.is_active == False and
+                    user_data.is_blocked == False and
                     is_traffic_overage == False
                 ):
-                    user_data.active = True
+                    user_data.is_active = True
 
                 # remove user
                 if (
-                    user_data.active == False and
-                    user.active == True
+                    user_data.is_active == False and
+                    user.is_active == True
                 ):
                     result = await XRAY_INSTANCE.remove_user(user.inbound_tag, user.email)
 
@@ -128,8 +128,8 @@ async def process():
 
                 # add user
                 elif (
-                    user_data.active == True and
-                    user.active == False
+                    user_data.is_active == True and
+                    user.is_active == False
                 ):
                     user_data.traffic = 0
                     user_data.reset_traffic_date = now

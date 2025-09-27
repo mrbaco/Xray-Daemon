@@ -58,7 +58,7 @@ async def import_database():
 
         if total > 0:
             for user in usersList:
-                if user.active == True:
+                if user.is_active == True:
                     result = await XRAY_INSTANCE.add_user(
                         inbound_tag=user.inbound_tag,
                         email=user.email,

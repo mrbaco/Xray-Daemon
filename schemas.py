@@ -56,8 +56,8 @@ class ReadUser(BaseModel):
     flow: str
     traffic: int
     limit: int
-    active: bool
-    blocked: bool
+    is_active: bool
+    is_blocked: bool
     created_date: datetime
     reset_traffic_date: datetime
 
@@ -70,8 +70,8 @@ class ReadUsers(BaseModel, Generic[T]):
 class UpdateUser(BaseModel):
     traffic: int | None = Field(default=None)
     limit: int | None = Field(default=None)
-    active: bool | None = Field(default=None)
-    blocked: bool | None = Field(default=None)
+    is_active: bool | None = Field(default=None)
+    is_blocked: bool | None = Field(default=None)
     reset_traffic_date: datetime | None = Field(default=None)
 
 
