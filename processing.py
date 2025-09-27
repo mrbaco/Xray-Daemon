@@ -106,13 +106,6 @@ async def process():
                 ):
                     user_data.active = True
 
-                # inactivate user with expired date
-                if (
-                    user.expired_date and
-                    user.expired_date >= now
-                ):
-                    user_data.active = False
-
                 # remove user
                 if (
                     user_data.active == False and

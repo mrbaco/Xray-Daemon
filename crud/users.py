@@ -2,7 +2,7 @@ from sqlalchemy import func, select, Select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Tuple
 
-import secrets, uuid
+import secrets
 
 import models, schemas
 
@@ -40,15 +40,12 @@ async def create_user(
         inbound_tag: str,
         user_data: schemas.CreateUser
 ) -> (models.User | None):
-    uuid_str = None
     password = None
 
     if user_data.limit < 0:
         user_data.limit = 0
 
-    if user_data.type in (schemas.NodeTypeEnum.VMess, schemas.NodeTypeEnum.VLess):
-        uuid_str = str(uuid.uuid4())
-    else:
+    if user_data.type not in (schemas.NodeTypeEnum.VMess, schemas.NodeTypeEnum.VLess):
         if user_data.cipher_type == schemas.CipherType.ss2022_blake3_aes_128_gcm:
             password = secrets.token_urlsafe(64)[0:24]
         elif user_data.cipher_type == schemas.CipherType.ss2022_blake3_aes_256_gcm:
@@ -70,7 +67,7 @@ async def create_user(
         type=user_data.type.value if user_data.type else None,
         password=password,
         cipher_type=user_data.cipher_type.value if user_data.cipher_type else None,
-        uuid=uuid_str,
+        uuid=user_data.uuid,
         flow=user_data.flow,
         limit=user_data.limit
     )
