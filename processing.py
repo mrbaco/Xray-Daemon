@@ -56,7 +56,6 @@ async def process():
                     is_traffic_overage == True and
                     user_data.active == True
                 ):
-                    is_traffic_overage = True
                     user_data.active = False
 
                 # reset traffic after "reset traffic date" + "reset traffic period"
