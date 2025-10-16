@@ -10,12 +10,20 @@ import models, schemas
 async def get_users(
         session: AsyncSession,
         inbound_tag: str = None,
-        email: str = None
+        email: str = None,
+        is_traffic_overage: bool = None,
+        is_active: bool = None
 ) -> Tuple[List[models.User], int]:
     query = select(models.User)
     count_query = select(func.count()).select_from(models.User)
 
     def add_filters(query: Select) -> Select:
+        if is_traffic_overage == True:
+            query = query.filter(models.User.traffic >= models.User.limit)
+
+        if is_active is not None:
+            query = query.filter(models.User.is_active == is_active)
+
         if inbound_tag:
             query = query.filter(models.User.inbound_tag == inbound_tag)
 

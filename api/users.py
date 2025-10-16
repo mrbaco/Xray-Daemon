@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from schemas import XrayError
 from database import XRAY_INSTANCE, get_session
@@ -43,10 +43,17 @@ async def create_user(
 @router.get('/{inbound_tag}', status_code=status.HTTP_200_OK, response_model=schemas.ReadUsers[schemas.ReadUser])
 async def get_users(
     inbound_tag: str,
+    is_traffic_overage: bool | None = Query(default=None),
+    is_active: bool | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
     _ = Depends(check_api_key)
 ):
-    usersList, total = await users.get_users(session, inbound_tag)
+    usersList, total = await users.get_users(
+        session,
+        inbound_tag,
+        is_traffic_overage=is_traffic_overage,
+        is_active=is_active
+    )
 
     return schemas.ReadUsers(
         users=usersList,
