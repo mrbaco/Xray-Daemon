@@ -97,7 +97,10 @@ async def update_user(
         models.User.inbound_tag == inbound_tag,
         models.User.email == email
     ).values(
-        **user_data.model_dump(exclude_unset=True)
+        **user_data.model_dump(
+            exclude_unset=True,
+            exclude_none=True
+        )
     ))
 
     await session.commit()
