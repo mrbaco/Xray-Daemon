@@ -15,12 +15,12 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     inbound_tag: Mapped[str] = mapped_column(String(64))
-    email: Mapped[str] = mapped_column(String(128), unique=True)
+    email: Mapped[str] = mapped_column(String(128))
     level: Mapped[int] = mapped_column(Integer, nullable=True)
     type: Mapped[str] = mapped_column(String(16))
     password: Mapped[str] = mapped_column(String(64), nullable=True)
     cipher_type: Mapped[int] = mapped_column(Integer, nullable=True)
-    uuid: Mapped[str] = mapped_column(String(36), unique=True, nullable=True)
+    uuid: Mapped[str] = mapped_column(String(36), nullable=True)
     flow: Mapped[str] = mapped_column(String(32), default='xtls-rprx-vision')
     traffic: Mapped[int] = mapped_column(Integer, default=0)
     limit: Mapped[int] = mapped_column(Integer)
@@ -30,5 +30,5 @@ class User(Base):
     reset_traffic_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
-        UniqueConstraint('inbound_tag', 'uuid', name='uix__inbound_tag__uuid'),
+        UniqueConstraint('inbound_tag', 'uuid', 'email', name='uix__inbound_tag__uuid__email'),
     )
