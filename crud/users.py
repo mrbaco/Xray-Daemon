@@ -1,4 +1,4 @@
-from sqlalchemy import func, select, Select, desc
+from sqlalchemy import func, select, Select, desc, update as update_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Tuple
 
@@ -92,21 +92,15 @@ async def update_user(
         inbound_tag: str,
         email: str,
         user_data: schemas.UpdateUser
-) -> (models.User | None):
-    usersList, total = await get_users(session, inbound_tag, email)
-
-    if total != 1:
-        return False
-
-    user = usersList[0]
-
-    for key, value in user_data.model_dump(exclude_unset=True).items():
-        setattr(user, key, value)
+) -> None:
+    await session.execute(update_db(models.User).filter(
+        models.User.inbound_tag == inbound_tag,
+        models.User.email == email
+    ).values(
+        **user_data.model_dump(exclude_unset=True)
+    ))
 
     await session.commit()
-    await session.refresh(user)
-
-    return user
 
 async def delete_user(
         session: AsyncSession,

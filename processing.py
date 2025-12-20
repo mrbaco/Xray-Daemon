@@ -159,16 +159,7 @@ async def process():
                     else:
                         activated_users.append(user.email)
 
-                if not await users.update_user(session, user.inbound_tag, user.email, user_data):
-                    LOGGER.error(
-                        'UPDATE USER ERROR',
-                        extra={
-                            'tags': {
-                                'email': user.email
-                            }
-                        },
-                        exc_info=True,
-                    )
+                await users.update_user(session, user.inbound_tag, user.email, user_data)
 
         except SQLAlchemyError as e:
             await session.rollback()

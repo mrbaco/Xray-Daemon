@@ -100,5 +100,4 @@ async def update_user(
     if user_data.limit and user_data.limit < 0:
         user_data.limit = 0
 
-    if not await users.update_user(session, inbound_tag, email, user_data):
-        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    await users.update_user(session, inbound_tag, email, user_data)
