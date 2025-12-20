@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, String, DateTime, Boolean
+from sqlalchemy import Integer, String, DateTime, Boolean, UniqueConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
 from sqlalchemy.ext.asyncio import AsyncAttrs
@@ -28,3 +28,7 @@ class User(Base):
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
     created_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     reset_traffic_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('inbound_tag', 'uuid', name='uix__inbound_tag__uuid'),
+    )
