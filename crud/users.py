@@ -68,6 +68,9 @@ async def create_user(
     ):
         user_data.cipher_type = None
 
+    if user_data.type == schemas.NodeTypeEnum.VLess and not user_data.flow:
+        user_data.flow = 'xtls-rprx-vision'
+
     user = models.User(
         inbound_tag=inbound_tag,
         email=user_data.email,

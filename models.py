@@ -21,7 +21,7 @@ class User(Base):
     password: Mapped[str] = mapped_column(String(64), nullable=True)
     cipher_type: Mapped[int] = mapped_column(Integer, nullable=True)
     uuid: Mapped[str] = mapped_column(String(36), nullable=True)
-    flow: Mapped[str] = mapped_column(String(32), default='xtls-rprx-vision')
+    flow: Mapped[str] = mapped_column(String(32), nullable=True, default='xtls-rprx-vision')
     traffic: Mapped[int] = mapped_column(Integer, default=0)
     limit: Mapped[int] = mapped_column(Integer)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

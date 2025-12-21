@@ -40,7 +40,7 @@ class CreateUser(BaseModel):
     level: int | None = Field(default=0)
     type: NodeTypeEnum | None = Field(default=NodeTypeEnum.VLess)
     cipher_type: CipherType | None = Field(default=CipherType.unknown)
-    flow: str | None = Field(default='xtls-rprx-vision', max_length=32)
+    flow: str | None = Field(default=None, max_length=32)
     limit: int | None = Field(default=0)
 
 
