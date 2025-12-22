@@ -53,7 +53,7 @@ class ReadUser(BaseModel):
     password: str | None
     cipher_type: CipherType | None
     uuid: str | None
-    flow: str
+    flow: str | None
     traffic: int
     limit: int
     is_active: bool
