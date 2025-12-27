@@ -20,16 +20,16 @@ class NodeTypeEnum(Enum):
 
 
 class CipherType(Enum):
-    unknown = 0,
-    aes_128_gcm = 5,
-    aes_256_gcm = 6,
-    chacha20_poly1305 = 7,
-    chacha20_ietf_poly1305 = 7,
-    xchacha20_poly1305 = 8,
-    xchacha20_ietf_poly1305 = 8,
-    none = 9,
-    ss2022_blake3_aes_128_gcm = 10,
-    ss2022_blake3_aes_256_gcm = 11,
+    unknown = 0
+    aes_128_gcm = 5
+    aes_256_gcm = 6
+    chacha20_poly1305 = 7
+    chacha20_ietf_poly1305 = 7
+    xchacha20_poly1305 = 8
+    xchacha20_ietf_poly1305 = 8
+    none = 9
+    ss2022_blake3_aes_128_gcm = 10
+    ss2022_blake3_aes_256_gcm = 11
     ss2022_blake3_chacha20_poly1305 = 12
 
 
