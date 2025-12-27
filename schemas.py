@@ -28,9 +28,9 @@ class CipherType(Enum):
     xchacha20_poly1305 = 8,
     xchacha20_ietf_poly1305 = 8,
     none = 9,
-    ss2022_blake3_aes_128_gcm = 0,
-    ss2022_blake3_aes_256_gcm = 0,
-    ss2022_blake3_chacha20_poly1305 = 0
+    ss2022_blake3_aes_128_gcm = 10,
+    ss2022_blake3_aes_256_gcm = 11,
+    ss2022_blake3_chacha20_poly1305 = 12
 
 
 class CreateUser(BaseModel):
