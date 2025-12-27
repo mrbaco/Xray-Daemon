@@ -5,6 +5,7 @@ from schemas import XrayError
 from database import XRAY_INSTANCE, get_session
 from crud import users
 from security import check_api_key
+from loki_logger import LOGGER
 
 import schemas
 
@@ -36,6 +37,18 @@ async def create_user(
 
     if type(result) is XrayError:
         await users.delete_user(session, inbound_tag, user.email)
+
+        LOGGER.error(
+            'CREATE USER ERROR',
+            extra={
+                'tags': {
+                    'error_msg': result.message,
+                    'email': user.email
+                }
+            },
+            exc_info=True,
+        )
+
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, result.message)
 
     return user
@@ -87,6 +100,17 @@ async def remove_user(
     result = await XRAY_INSTANCE.remove_user(inbound_tag, email)
 
     if type(result) is XrayError and "not found" not in result.message:
+        LOGGER.error(
+            'REMOVE USER ERROR',
+            extra={
+                'tags': {
+                    'error_msg': result.message,
+                    'email': email
+                }
+            },
+            exc_info=True,
+        )
+
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, result.message)
 
 @router.patch('/{inbound_tag}/{email}', status_code=status.HTTP_204_NO_CONTENT)
