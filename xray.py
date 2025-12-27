@@ -154,14 +154,6 @@ class Xray(object):
 						shadowsocks_config_pb2.Account(password=password, cipher_type=cipher_type)
 					),
 				)
-			elif type == NodeTypeEnum.Shadowsocks_2022.value:
-				user = user_pb2.User(
-					email=email,
-					level=level,
-					account=to_typed_message(
-						shadowsocks_2022_config_pb2.User(email=email, key=password, level=level)
-					),
-				)
 			elif type == NodeTypeEnum.Trojan.value:
 				user = user_pb2.User(
 					email=email,

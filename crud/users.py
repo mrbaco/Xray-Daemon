@@ -66,7 +66,7 @@ async def create_user(
         schemas.CipherType.ss2022_blake3_aes_256_gcm,
         schemas.CipherType.ss2022_blake3_chacha20_poly1305
     ):
-        user_data.cipher_type = None
+        user_data.cipher_type = 9
 
     user = models.User(
         inbound_tag=inbound_tag,
