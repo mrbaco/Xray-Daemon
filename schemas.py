@@ -37,7 +37,7 @@ class CreateUser(BaseModel):
     uuid: str | None = Field(min_length=36, max_length=36)
     email: str = Field(min_length=3, max_length=128)
     level: int | None = Field(default=0)
-    type: NodeTypeEnum | None = Field(default=NodeTypeEnum.VLess)
+    type: NodeTypeEnum = Field()
     cipher_type: CipherType | None = Field(default=CipherType.unknown)
     flow: str | None = Field(default=None, max_length=32)
     limit: int | None = Field(default=0)
