@@ -3,7 +3,6 @@ from typing import Generic, List
 from annotated_types import T
 from pydantic import BaseModel, Field
 from datetime import datetime
-from uuid import uuid4
 
 
 class XrayError:
@@ -35,7 +34,7 @@ class CipherType(Enum):
 
 
 class CreateUser(BaseModel):
-    uuid: str = Field(min_length=36, max_length=36, default=str(uuid4()))
+    uuid: str | None = Field(min_length=36, max_length=36)
     email: str = Field(min_length=3, max_length=128)
     level: int | None = Field(default=0)
     type: NodeTypeEnum | None = Field(default=NodeTypeEnum.VLess)
