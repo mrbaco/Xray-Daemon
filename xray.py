@@ -29,6 +29,25 @@ class Xray(object):
 	def __init__(self, api_host: str, api_port: int):
 		self.xray_client = grpc.insecure_channel(target=f"{api_host}:{api_port}")
 
+	async def get_user_online_sessions(self, email: str) -> Union[int, XrayError]:
+		"""
+		Get online sessions for user
+		:param email: user e-mail
+		:return:
+		"""
+		stub = stats_command_pb2_grpc.StatsServiceStub(self.xray_client)
+		try:
+			resp = stub.GetStats(
+				stats_command_pb2.GetStatsRequest(name=f"user>>>{email}>>>online", reset=False)
+			)
+			return resp.stat.value
+		except grpc.RpcError as rpc_err:
+			detail = rpc_err.details()
+			if detail.endswith("online not found."):
+				return XrayError(detail)
+
+			return XrayError(detail)
+
 	async def get_user_upload_traffic(self, email: str, reset: bool = False) -> Union[int, XrayError]:
 		"""
 		Get user upload traffic
@@ -46,7 +65,7 @@ class Xray(object):
 			detail = rpc_err.details()
 			if detail.endswith("uplink not found."):
 				return XrayError(detail)
-			
+
 			return XrayError(detail)
 
 	async def get_user_download_traffic(self, email: str, reset: bool = False) -> Union[int, XrayError]:
@@ -66,7 +85,7 @@ class Xray(object):
 			detail = rpc_err.details()
 			if detail.endswith("downlink not found."):
 				return XrayError(detail)
-			
+
 			return XrayError(detail)
 
 	async def get_inbound_upload_traffic(self, inbound_tag: str, reset: bool = False) -> Union[int, XrayError]:

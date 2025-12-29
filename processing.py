@@ -39,12 +39,15 @@ async def process():
 
                 download_traffic = await XRAY_INSTANCE.get_user_download_traffic(user.email, is_need_to_reset)
                 upload_traffic = await XRAY_INSTANCE.get_user_upload_traffic(user.email, is_need_to_reset)
+                online_sessions = await XRAY_INSTANCE.get_user_online_sessions(user.email)
 
                 if is_need_to_reset == False:
                     user_data.traffic = (
                         download_traffic if not type(download_traffic) is XrayError else 0 +
                         upload_traffic if not type(upload_traffic) is XrayError else 0
                     )
+
+                user_data.online_sessions = online_sessions if not type(online_sessions) is XrayError else 0
 
                 # compare traffic and limit then set inactive due traffic overage
                 is_traffic_overage = (

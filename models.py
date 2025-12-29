@@ -23,6 +23,7 @@ class User(Base):
     uuid: Mapped[str] = mapped_column(String(36), nullable=True)
     flow: Mapped[str] = mapped_column(String(32), nullable=True)
     traffic: Mapped[int] = mapped_column(Integer, default=0)
+    online_sessions: Mapped[int] = mapped_column(Integer, default=0)
     limit: Mapped[int] = mapped_column(Integer)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
