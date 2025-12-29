@@ -1,7 +1,8 @@
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
+from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -68,6 +69,31 @@ class SysStatsResponse(_message.Message):
     PauseTotalNs: int
     Uptime: int
     def __init__(self, NumGoroutine: _Optional[int] = ..., NumGC: _Optional[int] = ..., Alloc: _Optional[int] = ..., TotalAlloc: _Optional[int] = ..., Sys: _Optional[int] = ..., Mallocs: _Optional[int] = ..., Frees: _Optional[int] = ..., LiveObjects: _Optional[int] = ..., PauseTotalNs: _Optional[int] = ..., Uptime: _Optional[int] = ...) -> None: ...
+
+class GetStatsOnlineIpListResponse(_message.Message):
+    __slots__ = ("name", "ips")
+    class IpsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: int
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    IPS_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    ips: _containers.ScalarMap[str, int]
+    def __init__(self, name: _Optional[str] = ..., ips: _Optional[_Mapping[str, int]] = ...) -> None: ...
+
+class GetAllOnlineUsersRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetAllOnlineUsersResponse(_message.Message):
+    __slots__ = ("users",)
+    USERS_FIELD_NUMBER: _ClassVar[int]
+    users: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, users: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class Config(_message.Message):
     __slots__ = ()

@@ -37,10 +37,11 @@ class Xray(object):
 		"""
 		stub = stats_command_pb2_grpc.StatsServiceStub(self.xray_client)
 		try:
-			resp = stub.GetStats(
-				stats_command_pb2.GetStatsRequest(name=f"user>>>{email}>>>online", reset=False)
+			resp = stub.GetStatsOnline(
+				stats_command_pb2.GetAllOnlineUsersRequest(name=f"user>>>{email}>>>online", reset=False)
 			)
-			return resp.stat.value
+			raise XrayError(resp.users)
+			return resp.users
 		except grpc.RpcError as rpc_err:
 			detail = rpc_err.details()
 			if detail.endswith("online not found."):
