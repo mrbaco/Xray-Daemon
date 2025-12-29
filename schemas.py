@@ -54,6 +54,7 @@ class ReadUser(BaseModel):
     uuid: str | None
     flow: str | None
     traffic: int
+    online_sessions: int
     limit: int
     is_active: bool
     is_blocked: bool
