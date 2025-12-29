@@ -40,7 +40,7 @@ class Xray(object):
 			resp = stub.GetStatsOnline(
 				stats_command_pb2.GetStatsRequest(name=f"user>>>{email}>>>online", reset=False)
 			)
-			raise XrayError(resp.users)
+			raise XrayError(resp)
 			return resp.users
 		except grpc.RpcError as rpc_err:
 			detail = rpc_err.details()
