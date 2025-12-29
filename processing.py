@@ -35,7 +35,7 @@ async def process():
                     reset_traffic_date=user.reset_traffic_date
                 )
 
-                is_need_to_reset = user_data.reset_traffic_date + timedelta(seconds=reset_traffic_period) <= now
+                is_need_to_reset = user_data.reset_traffic_date + timedelta(seconds=reset_traffic_period) <= now or user_data.traffic == -1
 
                 download_traffic = await XRAY_INSTANCE.get_user_download_traffic(user.email, is_need_to_reset)
                 upload_traffic = await XRAY_INSTANCE.get_user_upload_traffic(user.email, is_need_to_reset)
@@ -46,6 +46,9 @@ async def process():
                         download_traffic if not type(download_traffic) is XrayError else 0 +
                         upload_traffic if not type(upload_traffic) is XrayError else 0
                     )
+
+                else:
+                    user_data.traffic = 0
 
                 user_data.online_sessions = online_sessions if not type(online_sessions) is XrayError else 0
 

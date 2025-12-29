@@ -124,4 +124,7 @@ async def update_user(
     if user_data.limit and user_data.limit < 0:
         user_data.limit = 0
 
+    if user_data.traffic and user_data.traffic == 0:
+        user_data.traffic = -1
+
     await users.update_user(session, inbound_tag, email, user_data)
