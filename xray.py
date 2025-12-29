@@ -38,7 +38,7 @@ class Xray(object):
 		stub = stats_command_pb2_grpc.StatsServiceStub(self.xray_client)
 		try:
 			resp = stub.GetStatsOnline(
-				stats_command_pb2.GetAllOnlineUsersRequest(name=f"user>>>{email}>>>online", reset=False)
+				stats_command_pb2.GetStatsRequest(name=f"user>>>{email}>>>online", reset=False)
 			)
 			raise XrayError(resp.users)
 			return resp.users
