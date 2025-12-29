@@ -5,7 +5,7 @@ import warnings
 
 from xray_rpc.app.stats.command import command_pb2 as command__pb2
 
-GRPC_GENERATED_VERSION = '1.76.0'
+GRPC_GENERATED_VERSION = '1.66.1'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
