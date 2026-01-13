@@ -24,7 +24,7 @@ async def lifespan(_: FastAPI):
 
         scheduler.add_job(
             process,
-            trigger=IntervalTrigger(minutes=1),
+            trigger=IntervalTrigger(seconds=20),
             id='processing',
             replace_existing=True
         )
