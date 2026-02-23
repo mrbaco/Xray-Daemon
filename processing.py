@@ -84,16 +84,24 @@ async def process():
                         error_msg.append(is_need_to_reset.message if type(is_need_to_reset) is XrayError else '')
                         error_msg.append(upload_traffic.message if type(upload_traffic) is XrayError else '')
 
-                        LOGGER.error(
-                            'RESET TRAFFIC ERROR',
-                            extra={
-                                'tags': {
-                                    'error_msg': '\n'.join(error_msg),
-                                    'email': user.email
-                                }
-                            },
-                            exc_info=True,
-                        )
+                        try:
+                            LOGGER.error(
+                                '! RESET TRAFFIC: {email}'.format(
+                                    email=user.email
+                                ),
+                                extra={
+                                    'tags': {
+                                        'error_msg': '\n'.join(error_msg),
+                                        'email': user.email
+                                    }
+                                },
+                                exc_info=True,
+                            )
+
+                        except:
+                            print('! RESET TRAFFIC: {email}'.format(
+                                email=user.email
+                            ))
 
                 # inactivate previously blocked user
                 if (
@@ -119,16 +127,24 @@ async def process():
                     result = await XRAY_INSTANCE.remove_user(user.inbound_tag, user.email)
 
                     if type(result) is XrayError:
-                        LOGGER.error(
-                            'REMOVE USER ERROR',
-                            extra={
-                                'tags': {
-                                    'error_msg': result.message,
-                                    'email': user.email
-                                }
-                            },
-                                exc_info=True,
-                        )
+                        try:
+                            LOGGER.error(
+                                '! REMOVE USER: {email}'.format(
+                                    email=user.email
+                                ),
+                                extra={
+                                    'tags': {
+                                        'error_msg': result.message,
+                                        'email': user.email
+                                    }
+                                },
+                                    exc_info=True,
+                            )
+
+                        except:
+                            print('! REMOVE USER: {email}'.format(
+                                email=user.email
+                            ))
                     else:
                         inactivated_users.append(user.email)
 
@@ -152,16 +168,24 @@ async def process():
                     )
 
                     if type(result) is XrayError:
-                        LOGGER.error(
-                            'ADD USER ERROR',
-                            extra={
-                                'tags': {
-                                    'error_msg': result.message,
-                                    'email': user.email
-                                }
-                            },
-                            exc_info=True,
-                        )
+                        try:
+                            LOGGER.error(
+                                '! ADD USER: {email}'.format(
+                                    email=user.email
+                                ),
+                                extra={
+                                    'tags': {
+                                        'error_msg': result.message,
+                                        'email': user.email
+                                    }
+                                },
+                                exc_info=True,
+                            )
+
+                        except:
+                            print('! ADD USER: {email}'.format(
+                                email=user.email
+                            ))
                     else:
                         activated_users.append(user.email)
 
@@ -170,41 +194,53 @@ async def process():
         except SQLAlchemyError as e:
             await session.rollback()
 
-            LOGGER.error(
-                'PROCESSING ERROR (SQL)',
-                extra={
-                    'tags': {
-                        'error_type': type(e).__name__,
-                        'error_msg': str(e)
-                    }
-                },
-                exc_info=True,
-            )
+            try:
+                LOGGER.error(
+                    '! PROCESSING (SQL)',
+                    extra={
+                        'tags': {
+                            'error_type': type(e).__name__,
+                            'error_msg': str(e)
+                        }
+                    },
+                    exc_info=True,
+                )
+
+            except:
+                print('! PROCESSING (SQL)')
 
         except Exception as e:
             await session.rollback()
 
-            LOGGER.error(
-                'PROCESSING ERROR',
-                extra={
-                    'tags': {
-                        'error_type': type(e).__name__,
-                        'error_msg': str(e)
-                    }
-                },
-                exc_info=True,
-            )
+            try:
+                LOGGER.error(
+                    '! PROCESSING',
+                    extra={
+                        'tags': {
+                            'error_type': type(e).__name__,
+                            'error_msg': str(e)
+                        }
+                    },
+                    exc_info=True,
+                )
+
+            except:
+                print('! PROCESSING')
 
         finally:
             await session.close()
 
-        LOGGER.info(
-            'PROCESSING RESULT',
-            extra={
-                'tags': {
-                    'inactivated_users': ', '.join(inactivated_users),
-                    'activated_users': ', '.join(activated_users),
-                    'blocked_users': ', '.join(blocked_users)
+        try:
+            LOGGER.info(
+                '< PROCESSING',
+                extra={
+                    'tags': {
+                        'inactivated_users': ', '.join(inactivated_users),
+                        'activated_users': ', '.join(activated_users),
+                        'blocked_users': ', '.join(blocked_users)
+                    }
                 }
-            }
-        )
+            )
+
+        except:
+            print('< PROCESSING')

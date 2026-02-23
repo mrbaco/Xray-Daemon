@@ -1,7 +1,8 @@
 from fastapi import Request, status
 from fastapi.concurrency import iterate_in_threadpool
 from fastapi.responses import JSONResponse
-from logging_loki import LokiHandler
+from logging_loki import LokiQueueHandler
+from multiprocessing import Queue
 from dotenv import load_dotenv
 
 import re, os, logging, time
@@ -23,7 +24,8 @@ def configure_logger(service: str) -> logging.Logger:
     loki_password = os.getenv('LOKI_PASSWORD')
 
     if loki_url and loki_login and loki_password:
-        loki_handler = LokiHandler(
+        loki_handler = LokiQueueHandler(
+            Queue(-1),
             url=f"{loki_url}/loki/api/v1/push",
             auth=(loki_login, loki_password),
             tags={'service': service, 'env': os.getenv('ENV')},
@@ -62,11 +64,12 @@ class Logger:
                 self.req_body_required = False
 
             self.logger.info(
-                'IN',
+                '> {method} {path}'.format(
+                    method=request.method,
+                    path=request.url.path
+                ),
                 extra={
                     'tags': {
-                        'method': request.method,
-                        'path': request.url.path,
                         'body': req_body if self.req_body_required else None,
                         'length': len(req_body),
                         'query': dict(request.query_params),
@@ -100,11 +103,12 @@ class Logger:
             process_time = (time.time() - start_time) * 1000
             
             self.logger.info(
-                'OUT',
+                '< {method} {path}'.format(
+                    method=request.method,
+                    path=request.url.path
+                ),
                 extra={
                     'tags': {
-                        'method': request.method,
-                        'path': request.url.path,
                         'body': resp_body[:1024] if self.resp_body_required else None,
                         'length': len(resp_body),
                         'status_code': response.status_code,
@@ -116,17 +120,22 @@ class Logger:
             return response
 
         except Exception as e:
-            self.logger.error(
-                'ERROR',
-                extra={
-                    'tags': {
-                        'error_type': type(e).__name__,
-                        'error_msg': str(e),
-                        'method': request.method,
-                        'path': request.url.path,
-                    }
-                },
-                exc_info=True,
-            )
+            try:
+                self.logger.error(
+                    '! {method} {path}'.format(
+                        method=request.method,
+                        path=request.url.path
+                    ),
+                    extra={
+                        'tags': {
+                            'error_type': type(e).__name__,
+                            'error_msg': str(e),
+                        }
+                    },
+                    exc_info=True,
+                )
+
+            except:
+                pass
 
             return JSONResponse({ "message": type(e).__name__ }, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)

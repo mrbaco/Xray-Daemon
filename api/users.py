@@ -38,16 +38,24 @@ async def create_user(
     if type(result) is XrayError:
         await users.delete_user(session, inbound_tag, user.email)
 
-        LOGGER.error(
-            'CREATE USER ERROR',
-            extra={
-                'tags': {
-                    'error_msg': result.message,
-                    'email': user.email
-                }
-            },
-            exc_info=True,
-        )
+        try:
+            LOGGER.error(
+                '! USER CREATE: {email}'.format(
+                    email=user.email
+                ),
+                extra={
+                    'tags': {
+                        'error_msg': result.message,
+                        'email': user.email
+                    }
+                },
+                exc_info=True,
+            )
+
+        except:
+            print('! USER CREATE: {email}'.format(
+                email=user.email
+            ))
 
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, result.message)
 
@@ -100,16 +108,25 @@ async def remove_user(
     result = await XRAY_INSTANCE.remove_user(inbound_tag, email)
 
     if type(result) is XrayError and "not found" not in result.message:
-        LOGGER.error(
-            'REMOVE USER ERROR',
-            extra={
-                'tags': {
-                    'error_msg': result.message,
-                    'email': email
-                }
-            },
-            exc_info=True,
-        )
+
+        try:
+            LOGGER.error(
+                '! USER REMOVE: {email}'.format(
+                    email=email
+                ),
+                extra={
+                    'tags': {
+                        'error_msg': result.message,
+                        'email': email
+                    }
+                },
+                exc_info=True,
+            )
+
+        except:
+            print('! USER REMOVE: {email}'.format(
+                email=email
+            ))
 
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, result.message)
 

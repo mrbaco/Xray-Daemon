@@ -71,16 +71,24 @@ async def import_database():
                     )
 
                     if type(result) is XrayError:
-                        LOGGER.error(
-                            'XRAY ERROR',
-                            extra={
-                                'tags': {
-                                    'error_msg': result.message,
-                                    'user.email': user.email
-                                }
-                            },
-                            exc_info=True,
-                        )
+                        try:
+                            LOGGER.error(
+                                '! XRAY CONNECTION: {email}'.format(
+                                    email=user.email
+                                ),
+                                extra={
+                                    'tags': {
+                                        'error_msg': result.message,
+                                        'user.email': user.email
+                                    }
+                                },
+                                exc_info=True,
+                            )
+
+                        except:
+                            print('! XRAY CONNECTION: {email}'.format(
+                                email=user.email
+                            ))
 
     except SQLAlchemyError as e:
         await session.rollback()
