@@ -36,8 +36,6 @@ async def create_user(
 	)
 
     if type(result) is XrayError:
-        await users.delete_user(session, inbound_tag, user.email)
-
         try:
             LOGGER.error(
                 '! USER CREATE: {email}'.format(
@@ -108,7 +106,6 @@ async def remove_user(
     result = await XRAY_INSTANCE.remove_user(inbound_tag, email)
 
     if type(result) is XrayError and "not found" not in result.message:
-
         try:
             LOGGER.error(
                 '! USER REMOVE: {email}'.format(
